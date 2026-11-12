@@ -53,6 +53,27 @@
   --color-caution-soft: #d6c25a1a;
   --color-caution-line: #d6c25a47;
 
+  /*
+   * Chart palette. Validated with the dataviz validator against surface-1 (#0f141d):
+   * lightness band, chroma floor, CVD and normal-vision separation, 3:1 contrast all pass.
+   *   - series-in / series-out: money in (blue) vs money out (orange), on every chart.
+   *   - ccy-*: each currency keeps one colour on every chart (fixed order, never cycled).
+   * Single-series charts use the accent. Text never wears a series colour.
+   */
+  --color-series-in: #3987e5;
+  --color-series-out: #d95926;
+  --color-series-net: #e4e9f1;
+  --color-grid: #1c2431;
+  --color-axis: #2e394b;
+
+  --color-ccy-usd: #3987e5;
+  --color-ccy-eur: #d95926;
+  --color-ccy-gbp: #199e70;
+  --color-ccy-jpy: #c98500;
+  --color-ccy-chf: #d55181;
+  --color-ccy-aud: #008300;
+  --color-ccy-sgd: #9085e9;
+
   /* Typography */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;

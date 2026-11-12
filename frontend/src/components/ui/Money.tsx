@@ -14,6 +14,8 @@ export interface MoneyProps {
   colored?: boolean;
   /** Hide the currency code, e.g. in a table whose column header names the currency. */
   hideCurrency?: boolean;
+  /** Tabular figures for columns (default). Large standalone values (KPI tiles) read better proportional. */
+  tabular?: boolean;
   className?: string;
 }
 
@@ -24,6 +26,7 @@ export function Money({
   sign = "negative",
   colored = true,
   hideCurrency = false,
+  tabular = true,
   className,
 }: MoneyProps) {
   const negative = isNegative(value);
@@ -33,7 +36,8 @@ export function Money({
   const text = (
     <span
       className={cn(
-        "num whitespace-nowrap",
+        tabular && "num",
+        "whitespace-nowrap",
         colored && negative && "text-negative",
         colored && positiveDelta && "text-positive",
         className,

@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from "react-router";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { DesignSystemPage } from "@/features/design-system/DesignSystemPage";
 import { NotFoundPage, PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
 import { NAV } from "./navigation";
@@ -9,6 +10,7 @@ import { RequireRole } from "./RequireRole";
 
 /** Screens that exist. Everything else in NAV renders a placeholder until designed. */
 const SCREENS: Record<string, React.ReactNode> = {
+  "/": <DashboardPage />,
   "/design-system": <DesignSystemPage />,
 };
 
