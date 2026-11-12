@@ -3,7 +3,8 @@ import { Outlet, useLocation } from "react-router";
 import { X } from "lucide-react";
 import { IconButton } from "@/components/ui";
 import { readPref, writePref } from "@/lib/prefs";
-import { BrandMark, Sidebar, SidebarNav } from "./Sidebar";
+import { BrandMark } from "./Brand";
+import { Sidebar, SidebarNav } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
 function isTyping(target: EventTarget | null): boolean {

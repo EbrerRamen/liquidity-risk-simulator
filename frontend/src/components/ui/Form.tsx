@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useId, type ComponentPropsWithRef, type ReactNode, type SelectHTMLAttributes } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -45,7 +45,7 @@ export function Field({
   );
 }
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends ComponentPropsWithRef<"input"> {
   /** Fixed text inside the control, e.g. a currency code or "%". */
   suffix?: string;
   numeric?: boolean;

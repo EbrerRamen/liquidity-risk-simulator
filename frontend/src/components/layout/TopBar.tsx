@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { CalendarDays, Check, ChevronDown, ChevronRight, DatabaseZap, LogOut, Menu } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronRight, DatabaseZap, Loader2, LogOut, Menu } from "lucide-react";
 import { findNavItem } from "@/app/navigation";
-import { ROLE_LABEL, useSession, type Role } from "@/app/session";
+import { ROLE_LABEL, ROLE_SUMMARY, useSession } from "@/app/session";
 import { Badge, IconButton, Tooltip } from "@/components/ui";
 import { formatDate, formatDateShort, formatWeekday } from "@/lib/format";
 
@@ -56,8 +56,14 @@ function BusinessDate() {
 }
 
 function UserMenu() {
-  const { user, previewRole } = useSession();
+  const { user, logout } = useSession();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const signOut = async () => {
+    setSigningOut(true);
+    await logout(); // RequireAuth then sends the user to /login
+  };
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,37 +112,21 @@ function UserMenu() {
             <div className="text-sm font-medium text-fg">{user.name}</div>
             <div className="truncate text-xs text-fg-faint">{user.email}</div>
           </div>
-          <div className="my-1 h-px bg-line-strong" />
-          <div className="px-2.5 pt-1.5 pb-1">
-            <div className="overline">Preview as role</div>
-            <div className="mt-0.5 text-2xs text-fg-faint">Mock session until sign-in is built</div>
+          <div className="mx-2.5 mb-2 rounded-md border border-line-strong px-2.5 py-2">
+            <div className="eyebrow">Role</div>
+            <div className="mt-0.5 text-xs font-medium text-fg">{ROLE_LABEL[user.role]}</div>
+            <div className="text-2xs text-fg-faint">{ROLE_SUMMARY[user.role]}</div>
           </div>
-          {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              role="menuitemradio"
-              aria-checked={user.role === r}
-              onClick={() => {
-                previewRole(r);
-                setOpen(false);
-              }}
-              className="flex h-8 w-full items-center justify-between rounded-md px-2.5 text-sm text-fg-muted hover:bg-hover hover:text-fg"
-            >
-              {ROLE_LABEL[r]}
-              {user.role === r && <Check className="size-4 text-accent" aria-hidden />}
-            </button>
-          ))}
           <div className="my-1 h-px bg-line-strong" />
           <button
             type="button"
             role="menuitem"
-            disabled
-            title="Sign-in is built in the next step"
-            className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-fg-muted disabled:opacity-50"
+            disabled={signingOut}
+            onClick={signOut}
+            className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-60"
           >
-            <LogOut className="size-4" aria-hidden />
-            Sign out
+            {signingOut ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <LogOut className="size-4" aria-hidden />}
+            {signingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
       )}

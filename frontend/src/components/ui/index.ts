@@ -7,3 +7,4 @@ export * from "./Money";
 export * from "./Stat";
 export * from "./Tooltip";
 export * from "./Table";
+export * from "./Alert";

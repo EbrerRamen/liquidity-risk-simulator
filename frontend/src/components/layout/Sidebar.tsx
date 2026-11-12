@@ -5,30 +5,13 @@ import { NAV, type NavGroup, type NavItem } from "@/app/navigation";
 import { useSession } from "@/app/session";
 import { cn } from "@/lib/cn";
 import { readPref, writePref } from "@/lib/prefs";
+import { BrandMark } from "./Brand";
 
 function useVisibleGroups(): NavGroup[] {
   const { can } = useSession();
   return NAV.filter((g) => (!g.devOnly || import.meta.env.DEV) && (!g.minRole || can(g.minRole)))
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.minRole || can(i.minRole)) }))
     .filter((g) => g.items.length > 0);
-}
-
-export function BrandMark({ collapsed }: { collapsed?: boolean }) {
-  return (
-    <div className={cn("flex h-12 shrink-0 items-center gap-2.5", collapsed ? "justify-center px-0" : "px-4")}>
-      <svg viewBox="0 0 32 32" className="size-6 shrink-0" aria-hidden>
-        <rect width="32" height="32" rx="7" className="fill-surface-3" />
-        <path d="M7 21.5h18" className="stroke-line-strong" strokeWidth="2" strokeLinecap="round" />
-        <path d="M7 18l5-5 4 3.5L25 9" fill="none" className="stroke-accent" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {!collapsed && (
-        <div className="min-w-0 leading-tight">
-          <div className="truncate text-sm font-semibold text-fg">Liquidity Risk</div>
-          <div className="truncate text-2xs text-fg-faint">Simulator</div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function NavRow({ item, collapsed, onNavigate }: { item: NavItem; collapsed: boolean; onNavigate?: () => void }) {
@@ -98,7 +81,7 @@ function Group({ group, collapsed, onNavigate }: { group: NavGroup; collapsed: b
         aria-controls={listId}
         className="group flex h-7 w-full items-center justify-between rounded-md px-2.5 text-left"
       >
-        <span className="overline group-hover:text-fg-muted">{group.label}</span>
+        <span className="eyebrow group-hover:text-fg-muted">{group.label}</span>
         <span className="flex items-center gap-1.5">
           {!open && <span className="num text-2xs text-fg-faint">{group.items.length}</span>}
           <ChevronRight

@@ -1,5 +1,7 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
+import { RequireAuth } from "@/auth/RequireAuth";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoginPage } from "@/features/auth/LoginPage";
 import { DesignSystemPage } from "@/features/design-system/DesignSystemPage";
 import { NotFoundPage, PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
 import { NAV } from "./navigation";
@@ -22,8 +24,13 @@ const navRoutes: RouteObject[] = NAV.filter((g) => !g.devOnly || import.meta.env
 );
 
 export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
   {
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [...navRoutes, { path: "*", element: <NotFoundPage /> }],
   },
 ]);

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ArrowDownToLine, Download, Filter, Play, Plus, RefreshCw, Search, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -119,7 +120,7 @@ function TypeSection() {
     { name: "Body", spec: "base · 14/22", sample: <span className="text-base">Opening liquidity is measured at the end of the business date.</span> },
     { name: "UI and tables", spec: "sm · 13/20", sample: <span className="text-sm">Counterparty · MM Deal · Maturity</span> },
     { name: "Caption", spec: "xs · 12/18 · muted", sample: <span className="text-xs text-fg-muted">Next 30 days, contractual flows only</span> },
-    { name: "Overline", spec: "2xs · 11/16 · caps", sample: <span className="overline">Stress testing</span> },
+    { name: "Eyebrow", spec: "2xs · 11/16 · caps", sample: <span className="eyebrow">Stress testing</span> },
     { name: "Identifier", spec: "IBM Plex Mono · xs", sample: <span className="font-mono text-xs">MMD-2026-004127 · req 7f3a91c2</span> },
   ];
   return (
@@ -476,7 +477,7 @@ function TablesSection() {
 
 function StatesSection() {
   return (
-    <Section id="states" title="States" intro="Skeletons while loading. Empty states explain what's missing and offer the next step. Errors show a retry and the request ID.">
+    <Section id="states" title="States" intro="Skeletons while loading. Empty states explain what's missing and offer the next step. Errors show a retry and the request ID. Alerts are inline notices inside a view.">
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Loading">
           <div className="flex flex-col gap-3">
@@ -505,6 +506,12 @@ function StatesSection() {
           />
         </Card>
       </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <Alert tone="info" title="Forecast-augmented view">Includes ML estimates of non-contractual flows. Values are estimates.</Alert>
+        <Alert tone="positive" title="Scenario executed">Results saved with input fingerprint sha256:9c1e…</Alert>
+        <Alert tone="warning" title="Buffer breach on 05 Dec 2026">Available liquidity falls 38.2m USD below the minimum buffer.</Alert>
+        <Alert tone="negative" title="Account temporarily locked">Too many failed attempts. Try again after 15:17.</Alert>
+      </div>
     </Section>
   );
 }
@@ -529,7 +536,7 @@ export function DesignSystemPage() {
           <StatesSection />
         </div>
         <nav aria-label="On this page" className="sticky top-20 hidden h-fit w-40 shrink-0 2xl:block">
-          <div className="overline mb-2">On this page</div>
+          <div className="eyebrow mb-2">On this page</div>
           <ul className="flex flex-col gap-0.5 border-l border-line">
             {SECTIONS.map((s) => (
               <li key={s.id}>
