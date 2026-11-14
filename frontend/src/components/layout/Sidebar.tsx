@@ -104,7 +104,7 @@ function Group({ group, collapsed, onNavigate }: { group: NavGroup; collapsed: b
 export function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const groups = useVisibleGroups();
   return (
-    <nav aria-label="Main" className={cn("flex flex-col overflow-y-auto pb-3", collapsed ? "gap-2 px-2" : "gap-3 px-3")}>
+    <nav aria-label="Main" className={cn("flex flex-col pb-3", collapsed ? "gap-2 px-2" : "gap-3 px-3")}>
       {groups.map((g) => (
         <Group key={g.id} group={g} collapsed={collapsed} onNavigate={onNavigate} />
       ))}
@@ -122,7 +122,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       )}
     >
       <BrandMark collapsed={collapsed} />
-      <div className="flex-1 overflow-hidden pt-2">
+      <div className="min-h-0 flex-1 scrollbar-none overflow-y-auto overscroll-contain pt-2">
         <SidebarNav collapsed={collapsed} />
       </div>
       <div className={cn("flex h-11 shrink-0 items-center border-t border-line", collapsed ? "justify-center" : "justify-between px-3")}>

@@ -63,7 +63,7 @@ export function AppShell() {
                 <X />
               </IconButton>
             </div>
-            <div className="flex-1 overflow-y-auto pt-2">
+            <div className="min-h-0 flex-1 scrollbar-none overflow-y-auto overscroll-contain pt-2">
               <SidebarNav collapsed={false} onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>
