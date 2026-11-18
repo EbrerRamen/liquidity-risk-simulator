@@ -10,6 +10,10 @@
  * direction gives the sign.
  */
 
+import type { Band, CounterpartyType } from "./reference";
+
+export type { Band } from "./reference";
+
 export const BUSINESS_DATE = "2026-11-12";
 export const BASE_CCY = "USD";
 export const MIN_BUFFER_BASE = 600_000_000; // app_settings.min_buffer, base currency
@@ -33,7 +37,7 @@ const SHARE: Record<Ccy, number> = { USD: 0.46, EUR: 0.22, GBP: 0.12, JPY: 0.08,
 
 /* ---------- seeded PRNG ---------- */
 
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -44,7 +48,7 @@ function mulberry32(seed: number) {
   };
 }
 
-function seedFor(s: string): number {
+export function seedFor(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
@@ -65,10 +69,11 @@ export function isWeekend(iso: string): boolean {
 
 /* ---------- counterparties ---------- */
 
-export type CounterpartyType = "BANK" | "CORPORATE" | "FUND" | "SOVEREIGN" | "NBFI";
-export type Band = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-
-export interface Counterparty {
+/**
+ * The 15 named counterparties behind the dashboard figures. The mock database
+ * (./db.ts) seeds these plus 37 generated ones and is the live source of truth.
+ */
+export interface NamedCounterparty {
   id: string;
   name: string;
   type: CounterpartyType;
@@ -83,7 +88,7 @@ export interface Counterparty {
   credit: number;
 }
 
-export const COUNTERPARTIES: Counterparty[] = [
+export const NAMED_COUNTERPARTIES: NamedCounterparty[] = [
   { id: "cp-01", name: "Northbridge Capital Bank", type: "BANK", country: "GB", classification: "MEDIUM", modelBand: "MEDIUM", funding: 1_284_000_000, credit: 310_000_000 },
   { id: "cp-02", name: "Helvetia Savings AG", type: "BANK", country: "CH", classification: "LOW", modelBand: "LOW", funding: 846_000_000, credit: 420_000_000 },
   { id: "cp-03", name: "Pacific Rim Trust", type: "BANK", country: "SG", classification: "LOW", modelBand: "HIGH", funding: 702_000_000, credit: 155_000_000 },
@@ -95,19 +100,14 @@ export const COUNTERPARTIES: Counterparty[] = [
   { id: "cp-09", name: "Lumen Treasury Services", type: "CORPORATE", country: "NL", classification: "LOW", modelBand: "MEDIUM", funding: 246_000_000, credit: 118_000_000 },
   { id: "cp-10", name: "Kestrel Privatbank", type: "BANK", country: "DE", classification: "MEDIUM", modelBand: "MEDIUM", funding: 214_000_000, credit: 402_000_000 },
   { id: "cp-11", name: "Sakura Shinkin Bank", type: "BANK", country: "JP", classification: "LOW", modelBand: "LOW", funding: 187_000_000, credit: 233_000_000 },
-  { id: "cp-12", name: "Republic of Valoria", type: "SOVEREIGN", country: "VL", classification: "LOW", modelBand: "LOW", funding: 0, credit: 612_000_000 },
+  { id: "cp-12", name: "Republic of Valoria", type: "SOVEREIGN", country: "XV", classification: "LOW", modelBand: "LOW", funding: 0, credit: 612_000_000 },
   { id: "cp-13", name: "Granite Peak Energy", type: "CORPORATE", country: "CA", classification: "HIGH", modelBand: "HIGH", funding: 126_000_000, credit: 189_000_000 },
   { id: "cp-14", name: "Orchid Capital Markets", type: "NBFI", country: "SG", classification: "MEDIUM", modelBand: "MEDIUM", funding: 109_000_000, credit: 64_000_000 },
   { id: "cp-15", name: "Baltic Shipping Credit", type: "NBFI", country: "LV", classification: "HIGH", modelBand: "CRITICAL", funding: 84_000_000, credit: 141_000_000 },
-  { id: "cp-16", name: "Others (33 counterparties)", type: "CORPORATE", country: "--", classification: "LOW", modelBand: "LOW", funding: 912_000_000, credit: 1_204_000_000 },
 ];
 
-/** Portfolio counts by band (48 counterparties in total). */
-export const BAND_COUNTS = {
-  analyst: { LOW: 22, MEDIUM: 14, HIGH: 9, CRITICAL: 3 },
-  model: { LOW: 19, MEDIUM: 15, HIGH: 10, CRITICAL: 4 },
-  disagreements: 5,
-};
+/** Funding and credit held by the generated (unnamed) counterparties, base currency. */
+export const OTHERS_TOTALS = { funding: 912_000_000, credit: 1_204_000_000 };
 
 export const ANOMALIES_BY_TYPE = [
   { type: "AMOUNT_OUTLIER", label: "Unusual amount", open: 4, total: 11 },

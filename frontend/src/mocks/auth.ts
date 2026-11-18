@@ -142,6 +142,16 @@ export async function mockRefresh(): Promise<TokenResponse> {
   return issue(account);
 }
 
+/**
+ * The caller of a mock endpoint, resolved from the session, as the real
+ * backend resolves it from the bearer token. Null when signed out.
+ */
+export function mockCurrentUser(): SessionUser | null {
+  const cookie = readCookie();
+  const account = cookie && ACCOUNTS.find((a) => a.id === cookie.userId && a.active);
+  return account ? publicUser(account) : null;
+}
+
 /** Whether a refresh cookie exists. The real app can't see an httpOnly cookie, so it just calls refresh. */
 export function mockHasRefreshCookie(): boolean {
   return readCookie() !== null;

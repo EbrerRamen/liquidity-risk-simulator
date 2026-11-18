@@ -152,7 +152,7 @@ export function KpiStrip({ data, filters, loading, asOf }: { data?: KpiResponse;
         <Money value={data.expected_outflows} currency={ccy} compact tabular={false} />
       </StripItem>
       <StripItem label="High-risk counterparties" to="/intelligence/counterparty-risk?band=HIGH,CRITICAL" sub={`${data.high_risk_counterparties.disagreements} disagree with analyst`}>
-        <span className="num">{data.high_risk_counterparties.count}</span> <span className="text-sm font-normal text-fg-muted">of 48</span>
+        <span className="num">{data.high_risk_counterparties.count}</span> <span className="text-sm font-normal text-fg-muted">of {data.high_risk_counterparties.total}</span>
       </StripItem>
       <StripItem label="Active scenarios" to="/stress/scenarios" sub="Presets and saved">
         <span className="num">{data.active_scenarios}</span>

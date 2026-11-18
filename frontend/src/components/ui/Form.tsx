@@ -1,4 +1,4 @@
-import { useId, type ComponentPropsWithRef, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useId, type ComponentPropsWithRef, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -70,7 +70,7 @@ export function Input({ className, suffix, numeric, ...rest }: InputProps) {
   );
 }
 
-export function Select({ className, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, children, ...rest }: ComponentPropsWithRef<"select">) {
   return (
     <div className="relative">
       <select className={cn(CONTROL, "appearance-none pr-8", className)} {...rest}>

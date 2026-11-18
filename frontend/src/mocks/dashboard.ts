@@ -6,10 +6,8 @@
 import {
   ACTIVE_SCENARIOS,
   ANOMALIES_BY_TYPE,
-  BAND_COUNTS,
   BASE_CCY,
   BUSINESS_DATE,
-  COUNTERPARTIES,
   CURRENCIES,
   FX,
   MATURITIES,
@@ -24,6 +22,7 @@ import {
   type Ccy,
   type DayFlows,
 } from "./dashboard-data";
+import { db } from "./db";
 import { latency } from "./latency";
 
 /* ---------- request / response types (mirror the planned API) ---------- */
@@ -63,7 +62,7 @@ export interface KpiResponse {
     min_date: string;
     funding_requirement: Money;
   };
-  high_risk_counterparties: { count: number; disagreements: number };
+  high_risk_counterparties: { count: number; total: number; disagreements: number };
   active_scenarios: number;
   overdue_inflows: { count: number; amount: Money };
 }
@@ -244,7 +243,24 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
 
-const cpName = (id: string) => COUNTERPARTIES.find((c) => c.id === id)!;
+const cpName = (id: string) => db().counterparties.find((c) => c.id === id) ?? { name: "Unknown counterparty", model_band: null };
+
+/** Band counts over active counterparties, from the live mock database. */
+function bandCounts() {
+  const active = db().counterparties.filter((c) => c.is_active);
+  const zero = () => ({ LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 }) as Record<Band, number>;
+  const model = zero();
+  const analyst = zero();
+  let disagreements = 0;
+  for (const c of active) {
+    analyst[c.risk_classification] += 1;
+    if (c.model_band) {
+      model[c.model_band] += 1;
+      if (c.model_band !== c.risk_classification) disagreements += 1;
+    }
+  }
+  return { total: active.length, model, analyst, disagreements };
+}
 
 /* ---------- endpoints ---------- */
 
@@ -288,10 +304,10 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
             min_date: p.min.date,
             funding_requirement: money(Math.max(0, p.buffer - p.min.value), ccy),
           },
-    high_risk_counterparties: {
-      count: BAND_COUNTS.model.HIGH + BAND_COUNTS.model.CRITICAL,
-      disagreements: BAND_COUNTS.disagreements,
-    },
+    high_risk_counterparties: (() => {
+      const b = bandCounts();
+      return { count: b.model.HIGH + b.model.CRITICAL, total: b.total, disagreements: b.disagreements };
+    })(),
     active_scenarios: ACTIVE_SCENARIOS,
     overdue_inflows: { count: OVERDUE_INFLOWS.count, amount: money(OVERDUE_INFLOWS.amountBase / (f.currency === "ALL" ? 1 : FX[f.currency] * 4), ccy) },
   };
@@ -423,16 +439,15 @@ export async function getCurrencyDistribution(): Promise<CurrencyDistributionRes
 
 export async function getConcentration(basis: "funding" | "credit"): Promise<ConcentrationResponse> {
   await latency();
-  const named = COUNTERPARTIES.filter((c) => !c.id.startsWith("cp-16"));
-  const others = COUNTERPARTIES.find((c) => c.id === "cp-16")!;
-  const OTHER_COUNT = 33;
-  const ranked = named.map((c) => ({ c, x: c[basis] })).filter((r) => r.x > 0).sort((a, b) => b.x - a.x);
-  const total = ranked.reduce((s, r) => s + r.x, 0) + others[basis];
-  // HHI over every name; the "others" tail is spread evenly across its 33 names.
-  const hhi =
-    ranked.reduce((s, r) => s + (r.x / total) ** 2, 0) + OTHER_COUNT * (others[basis] / OTHER_COUNT / total) ** 2;
+  // HHI over every active counterparty with exposure on this basis (§5.10).
+  const ranked = db()
+    .counterparties.filter((c) => c.is_active && c[basis] > 0)
+    .map((c) => ({ c, x: c[basis] }))
+    .sort((a, b) => b.x - a.x);
+  const total = ranked.reduce((s, r) => s + r.x, 0);
+  const hhi = ranked.reduce((s, r) => s + (r.x / total) ** 2, 0);
   const top = ranked.slice(0, 10);
-  const tail = ranked.slice(10).reduce((s, r) => s + r.x, 0) + others[basis];
+  const tail = ranked.slice(10).reduce((s, r) => s + r.x, 0);
   return {
     basis,
     currency: BASE_CCY,
@@ -445,25 +460,19 @@ export async function getConcentration(basis: "funding" | "credit"): Promise<Con
     items: top.map((r) => ({
       counterparty_id: r.c.id,
       name: r.c.name,
-      type: r.c.type,
+      type: r.c.counterparty_type,
       exposure: money(r.x, BASE_CCY),
       share: ratio(r.x / total, 4),
-      band: r.c.modelBand,
+      band: r.c.model_band ?? r.c.risk_classification,
     })),
-    others: { count: OTHER_COUNT + ranked.length - top.length, exposure: money(tail, BASE_CCY), share: ratio(tail / total, 4) },
+    others: { count: ranked.length - top.length, exposure: money(tail, BASE_CCY), share: ratio(tail / total, 4) },
   };
 }
 
 export async function getRiskDistribution(): Promise<RiskDistributionResponse> {
   await latency();
-  const total = Object.values(BAND_COUNTS.model).reduce((s, n) => s + n, 0);
-  return {
-    total,
-    model: BAND_COUNTS.model,
-    analyst: BAND_COUNTS.analyst,
-    disagreements: BAND_COUNTS.disagreements,
-    anomalies: ANOMALIES_BY_TYPE,
-  };
+  const b = bandCounts();
+  return { total: b.total, model: b.model, analyst: b.analyst, disagreements: b.disagreements, anomalies: ANOMALIES_BY_TYPE };
 }
 
 const DEAL_TYPE_LABEL: Record<string, string> = {
@@ -484,7 +493,7 @@ export async function getUpcomingMaturities(f: DashboardFilters, limit = 8): Pro
       return {
         reference: m.reference,
         counterparty: cp.name,
-        counterparty_band: cp.modelBand,
+        counterparty_band: cp.model_band ?? "LOW",
         deal_type: DEAL_TYPE_LABEL[m.dealType]!,
         direction: m.direction,
         currency: m.currency,
@@ -546,7 +555,7 @@ export async function getFindings(f: DashboardFilters): Promise<Finding[]> {
   out.push({
     id: "disagreements",
     severity: "info",
-    title: `${BAND_COUNTS.disagreements} counterparties where the model disagrees`,
+    title: `${bandCounts().disagreements} counterparties where the model disagrees`,
     detail: "The model's risk band differs from the analyst classification. Review the factor breakdown before changing either.",
     link: { label: "Counterparty risk", to: "/intelligence/counterparty-risk?disagreement=true" },
   });
