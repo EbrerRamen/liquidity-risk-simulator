@@ -8,8 +8,29 @@ import { db, type CashFlowRecord } from "./db";
 import { shiftDays } from "./schedule";
 import { PROJECTION_DAYS, RECORD_WINDOW_DAYS } from "./seed";
 
+/**
+ * Rates are looked up on every sort comparison, so they are cached per FX
+ * table. FX writes replace the `fxRates` array (never mutate it), so the
+ * array's identity is the cache key.
+ */
+const rateCache = new Map<string, Record<Ccy, number>>();
+let rateCacheFor: unknown = null;
+
 /** S_c(d): base units per 1 unit of currency, latest rate with rate_date <= d (§5.2). */
 export function ratesAt(date: string = T0): Record<Ccy, number> {
+  const rows = db().fxRates;
+  if (rows !== rateCacheFor) {
+    rateCache.clear();
+    rateCacheFor = rows;
+  }
+  const hit = rateCache.get(date);
+  if (hit) return hit;
+  const computed = computeRates(date);
+  rateCache.set(date, computed);
+  return computed;
+}
+
+function computeRates(date: string): Record<Ccy, number> {
   const out = { USD: 1 } as Record<Ccy, number>;
   const best: Partial<Record<Ccy, string>> = {};
   for (const r of db().fxRates) {

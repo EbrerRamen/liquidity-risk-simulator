@@ -28,6 +28,8 @@ function PageFallback() {
 const SCREENS: Record<string, ReactNode> = {
   "/": page(() => import("@/features/dashboard/DashboardPage").then((m) => m.DashboardPage)),
   "/data/counterparties": page(() => import("@/features/counterparties/CounterpartiesPage").then((m) => m.CounterpartiesPage)),
+  "/data/deals": page(() => import("@/features/deals/DealsPage").then((m) => m.DealsPage)),
+  "/data/cash-flows": page(() => import("@/features/cash-flows/CashFlowsPage").then((m) => m.CashFlowsPage)),
   "/design-system": page(() => import("@/features/design-system/DesignSystemPage").then((m) => m.DesignSystemPage)),
 };
 

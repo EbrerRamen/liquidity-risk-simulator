@@ -13,3 +13,4 @@ export * from "./Switch";
 export * from "./Table";
 export * from "./Toast";
 export * from "./Tooltip";
+export * from "./NumberInputs";
