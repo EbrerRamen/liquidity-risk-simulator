@@ -24,7 +24,27 @@ const BASE = "/api/v1/counterparties";
 const money = (n: number) => n.toFixed(2);
 const bandRank = (b: Band | null) => (b === null ? -1 : BANDS.indexOf(b));
 
-function toItem(c: CounterpartyRecord): CounterpartyListItem {
+interface Refs {
+  open_deals: number;
+  deals: number;
+  cash_flows: number;
+}
+
+/** Live reference counts per counterparty, from deals and cash flows. */
+function refCounts(): Map<string, Refs> {
+  const m = new Map<string, Refs>();
+  const get = (id: string) => m.get(id) ?? (m.set(id, { open_deals: 0, deals: 0, cash_flows: 0 }), m.get(id)!);
+  for (const d of db().deals) {
+    const r = get(d.counterparty_id);
+    r.deals++;
+    if (d.settlement_status === "PENDING" || d.settlement_status === "SETTLED") r.open_deals++;
+  }
+  for (const f of db().cashFlows) if (f.counterparty_id) get(f.counterparty_id).cash_flows++;
+  return m;
+}
+const NO_REFS: Refs = { open_deals: 0, deals: 0, cash_flows: 0 };
+
+function toItem(c: CounterpartyRecord, refs: Map<string, Refs>): CounterpartyListItem {
   return {
     id: c.id,
     name: c.name,
@@ -35,7 +55,7 @@ function toItem(c: CounterpartyRecord): CounterpartyListItem {
     is_active: c.is_active,
     latest_assessment: c.model_band ? { band: c.model_band, score: c.model_score!, as_of: c.assessed_at! } : null,
     exposure: { funding: money(c.funding), credit: money(c.credit), currency: BASE_CCY },
-    open_deals: c.open_deals,
+    open_deals: (refs.get(c.id) ?? NO_REFS).open_deals,
     updated_at: c.updated_at,
     version: c.version,
   };
@@ -84,6 +104,7 @@ function filtered(f: CounterpartyFilters): CounterpartyRecord[] {
   );
 }
 
+let sortRefs: Map<string, Refs> = new Map();
 const SORTERS: Record<string, (c: CounterpartyRecord) => string | number> = {
   name: (c) => c.name,
   counterparty_type: (c) => c.counterparty_type,
@@ -93,15 +114,17 @@ const SORTERS: Record<string, (c: CounterpartyRecord) => string | number> = {
   model_band: (c) => bandRank(c.model_band),
   funding: (c) => c.funding,
   credit: (c) => c.credit,
-  open_deals: (c) => c.open_deals,
+  open_deals: (c) => (sortRefs.get(c.id) ?? NO_REFS).open_deals,
   updated_at: (c) => c.updated_at,
 };
 
 export async function listCounterparties(f: CounterpartyFilters): Promise<Page<CounterpartyListItem>> {
   await latency(250, 550);
   requireUser("VIEWER", BASE);
+  const refs = refCounts();
+  sortRefs = refs;
   const page = paginate(filtered(f), f, SORTERS, [{ field: "name", dir: "asc" }], BASE);
-  return { ...page, items: page.items.map(toItem) };
+  return { ...page, items: page.items.map((c) => toItem(c, refs)) };
 }
 
 export async function getCounterparty(id: string): Promise<Counterparty> {
@@ -118,8 +141,8 @@ export async function getCounterpartySummary(id: string): Promise<CounterpartySu
     counterparty_id: c.id,
     as_of: BUSINESS_DATE,
     exposure: { funding: money(c.funding), credit: money(c.credit), currency: BASE_CCY },
-    open_deals: c.open_deals,
-    cash_flows: c.cash_flows,
+    open_deals: (refCounts().get(c.id) ?? NO_REFS).open_deals,
+    cash_flows: (refCounts().get(c.id) ?? NO_REFS).cash_flows,
     payment_behaviour: {
       window_days: 180,
       settled: c.payment.settled,
@@ -193,8 +216,6 @@ export async function createCounterparty(input: CounterpartyInput): Promise<Coun
     assessed_at: null,
     funding: 0,
     credit: 0,
-    open_deals: 0,
-    cash_flows: 0,
     payment: { settled: 0, on_time_rate: 0, avg_delay_days: 0, failed: 0 },
     version: 1,
     created_at: now,
@@ -247,8 +268,9 @@ export async function deleteCounterparty(id: string, version: number): Promise<v
   const user = requireUser("ADMIN", instance);
   const c = find(id);
   if (version !== c.version) throw problem(409, "conflict", "Changed by someone else", "Reload and try again.", {}, instance);
-  if (c.open_deals > 0 || c.cash_flows > 0) {
-    const parts = [c.open_deals && `${c.open_deals} deal${c.open_deals > 1 ? "s" : ""}`, c.cash_flows && `${c.cash_flows} cash flow${c.cash_flows > 1 ? "s" : ""}`].filter(Boolean);
+  const r = refCounts().get(c.id) ?? NO_REFS;
+  if (r.deals > 0 || r.cash_flows > 0) {
+    const parts = [r.deals && `${r.deals} deal${r.deals > 1 ? "s" : ""}`, r.cash_flows && `${r.cash_flows} cash flow${r.cash_flows > 1 ? "s" : ""}`].filter(Boolean);
     throw problem(409, "in-use", "Still referenced", `${c.name} is referenced by ${parts.join(" and ")}. Deactivate it instead, so history stays intact.`, {}, instance);
   }
   const d = db();
@@ -262,10 +284,11 @@ export async function exportCounterpartiesCsv(f: CounterpartyFilters): Promise<{
   await latency(500, 900);
   const user = requireUser("VIEWER", `${BASE}/export.csv`);
   // Same filters and sort as the list, but not paged: the file holds every matching row.
+  sortRefs = refCounts();
   const rows = sortRows(filtered(f), f.sort, SORTERS, [{ field: "name", dir: "asc" }], `${BASE}/export.csv`);
   const csv = toCsv(
     ["id", "name", "counterparty_type", "country_code", "credit_rating", "risk_classification", "model_band", "model_score", "funding_base", "credit_base", "base_currency", "open_deals", "is_active", "updated_at"],
-    rows.map((c) => [c.id, c.name, c.counterparty_type, c.country_code, c.credit_rating, c.risk_classification, c.model_band, c.model_score, money(c.funding), money(c.credit), BASE_CCY, c.open_deals, c.is_active, c.updated_at]),
+    rows.map((c) => [c.id, c.name, c.counterparty_type, c.country_code, c.credit_rating, c.risk_classification, c.model_band, c.model_score, money(c.funding), money(c.credit), BASE_CCY, (sortRefs.get(c.id) ?? NO_REFS).open_deals, c.is_active, c.updated_at]),
   );
   audit({ actor: user.name, action: "EXPORT", entity_type: "counterparty", entity_id: null, summary: `Exported ${rows.length} counterparties (CSV)` });
   commit();

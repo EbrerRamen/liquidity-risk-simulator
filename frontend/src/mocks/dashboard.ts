@@ -3,27 +3,11 @@
  * data in ./dashboard-data. Formulas follow §5: L0 (§5.5), AL_t (§5.6),
  * FR / survival (§5.8), SLCI (§5.9), HHI (§5.10). Money leaves as decimal strings.
  */
-import {
-  ACTIVE_SCENARIOS,
-  ANOMALIES_BY_TYPE,
-  BASE_CCY,
-  BUSINESS_DATE,
-  CURRENCIES,
-  FX,
-  MATURITIES,
-  MIN_BUFFER_BASE,
-  OPENING,
-  OVERDUE_INFLOWS,
-  PREVIOUS,
-  actualFlows,
-  addDays,
-  projectedFlows,
-  type Band,
-  type Ccy,
-  type DayFlows,
-} from "./dashboard-data";
-import { db } from "./db";
+import { ACTIVE_SCENARIOS, ANOMALIES_BY_TYPE, BASE_CCY, BUSINESS_DATE, CURRENCIES, MIN_BUFFER_BASE, PREVIOUS, type Band, type Ccy, type DayFlows } from "./dashboard-data";
+import { db, type DealRecord } from "./db";
 import { latency } from "./latency";
+import { cashBalance, maturingDeals, overdueInflows, projectedDaily, ratesAt, securitiesValue, settledDaily } from "./positions";
+import { DEAL_TYPE_LABEL } from "./reference";
 
 /* ---------- request / response types (mirror the planned API) ---------- */
 
@@ -147,6 +131,7 @@ export interface RiskDistributionResponse {
 }
 
 export interface UpcomingMaturity {
+  deal_id: string;
   reference: string;
   counterparty: string;
   counterparty_band: Band;
@@ -176,9 +161,19 @@ const ratio = (n: number, dp = 6): string => n.toFixed(dp);
 /** Reporting currency for a filter: base for ALL, else the currency itself. */
 const reportingCcy = (f: CurrencyFilter) => (f === "ALL" ? BASE_CCY : f);
 
+/** S_c(T0) from the live FX table, cached until the table changes. */
+let fxCache: { key: string; rates: Record<Ccy, number> } | null = null;
+function fx(): Record<Ccy, number> {
+  const rows = db().fxRates;
+  const last = rows[rows.length - 1];
+  const key = `${rows.length}:${last?.id}:${last?.rate_to_base}`;
+  if (!fxCache || fxCache.key !== key) fxCache = { key, rates: ratesAt(BUSINESS_DATE) };
+  return fxCache.rates;
+}
+
 /** Convert a currency amount into the reporting currency at S_c(T0). */
 function toReporting(amount: number, from: Ccy, filter: CurrencyFilter): number {
-  return filter === "ALL" ? amount * FX[from] : amount;
+  return filter === "ALL" ? amount * fx()[from] : amount;
 }
 
 function scope(filter: CurrencyFilter): readonly Ccy[] {
@@ -204,15 +199,15 @@ function opening(filter: CurrencyFilter) {
   let cash = 0;
   let securities = 0;
   for (const c of scope(filter)) {
-    cash += toReporting(OPENING[c].cash, c, filter);
-    securities += toReporting(OPENING[c].securities, c, filter);
+    cash += toReporting(cashBalance(c), c, filter);
+    securities += toReporting(securitiesValue(c), c, filter);
   }
   return { cash, securities, total: cash + securities };
 }
 
 function path(filter: CurrencyFilter, horizon: number) {
   const L0 = opening(filter).total;
-  const flows = combine(filter, projectedFlows).slice(0, horizon);
+  const flows = combine(filter, projectedDaily).slice(0, horizon);
   let al = L0;
   let min = { date: flows[0]!.date, value: Infinity };
   const buffer = filter === "ALL" ? MIN_BUFFER_BASE : null;
@@ -232,7 +227,7 @@ function sum(xs: DayFlows[], key: "inflows" | "outflows") {
 
 function slci(filter: CurrencyFilter): number | null {
   const L0 = opening(filter).total;
-  const flows = combine(filter, projectedFlows).slice(0, 30);
+  const flows = combine(filter, projectedDaily).slice(0, 30);
   const O = sum(flows, "outflows");
   const I = sum(flows, "inflows");
   const netOut = O - Math.min(I, 0.75 * O);
@@ -242,6 +237,9 @@ function slci(filter: CurrencyFilter): number | null {
 function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
+
+const ccyOf = (filter: CurrencyFilter): Ccy | undefined => (filter === "ALL" ? undefined : filter);
+const principalIn = (d: DealRecord, filter: CurrencyFilter) => toReporting(Number(d.principal), d.currency_code as Ccy, filter);
 
 const cpName = (id: string) => db().counterparties.find((c) => c.id === id) ?? { name: "Unknown counterparty", model_band: null };
 
@@ -271,7 +269,8 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
   const p = path(f.currency, f.horizon);
   const inflows = p.series.reduce((s, x) => s + x.inflows, 0);
   const outflows = p.series.reduce((s, x) => s + x.outflows, 0);
-  const mats = MATURITIES.filter((m) => m.day <= f.horizon && (f.currency === "ALL" || m.currency === f.currency));
+  const mats = maturingDeals(f.horizon, ccyOf(f.currency));
+  const overdue = overdueInflows(ccyOf(f.currency));
   const s30 = slci(f.currency);
   const prevAL = f.currency === "ALL" ? PREVIOUS.availableLiquidityBase : open.total * 0.988;
 
@@ -288,8 +287,8 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
     net_cash_flow: money(inflows - outflows, ccy),
     maturities: {
       count: mats.length,
-      borrow: money(mats.filter((m) => m.direction === "BORROW").reduce((s, m) => s + toReporting(m.principal, m.currency, f.currency), 0), ccy),
-      lend: money(mats.filter((m) => m.direction === "LEND").reduce((s, m) => s + toReporting(m.principal, m.currency, f.currency), 0), ccy),
+      borrow: money(mats.filter((m) => m.direction === "BORROW").reduce((s, m) => s + principalIn(m, f.currency), 0), ccy),
+      lend: money(mats.filter((m) => m.direction === "LEND").reduce((s, m) => s + principalIn(m, f.currency), 0), ccy),
     },
     slci_30d: s30 === null ? null : ratio(s30, 4),
     slci_30d_previous: s30 === null ? null : ratio(f.currency === "ALL" ? s30 + 0.064 : s30 * 1.03, 4),
@@ -309,7 +308,7 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
       return { count: b.model.HIGH + b.model.CRITICAL, total: b.total, disagreements: b.disagreements };
     })(),
     active_scenarios: ACTIVE_SCENARIOS,
-    overdue_inflows: { count: OVERDUE_INFLOWS.count, amount: money(OVERDUE_INFLOWS.amountBase / (f.currency === "ALL" ? 1 : FX[f.currency] * 4), ccy) },
+    overdue_inflows: { count: overdue.count, amount: money(f.currency === "ALL" ? overdue.amountBase : overdue.amount, ccy) },
   };
 }
 
@@ -337,7 +336,7 @@ export async function getProjection(f: DashboardFilters): Promise<ProjectionResp
 export async function getCashHistory(f: DashboardFilters): Promise<CashHistoryResponse> {
   await latency();
   const ccy = reportingCcy(f.currency);
-  const flows = combine(f.currency, actualFlows); // 180 days ending at T0
+  const flows = combine(f.currency, settledDaily); // 180 days ending at T0
   let cash = opening(f.currency).cash;
   const values: { date: string; cash: number }[] = [];
   for (let i = flows.length - 1; i >= 0; i--) {
@@ -377,8 +376,8 @@ function bucketise(days: DayFlows[], size: number, kind: FlowBucket["kind"], fro
 export async function getFlows(f: DashboardFilters): Promise<FlowsResponse> {
   await latency();
   const ccy = reportingCcy(f.currency);
-  const actual = combine(f.currency, actualFlows).slice(-f.lookback);
-  const projected = combine(f.currency, projectedFlows).slice(0, f.horizon);
+  const actual = combine(f.currency, settledDaily).slice(-f.lookback);
+  const projected = combine(f.currency, projectedDaily).slice(0, f.horizon);
   const granularity = f.lookback + f.horizon > 75 ? "week" : "day";
   const size = granularity === "week" ? 7 : 1;
   return {
@@ -402,12 +401,13 @@ export async function getMaturitySchedule(f: DashboardFilters): Promise<Maturity
   return {
     currency: ccy,
     buckets: LADDER.filter((b) => b.from <= f.horizon).map((b) => {
-      const ms = MATURITIES.filter(
-        (m) => m.day >= b.from && m.day <= Math.min(b.to, f.horizon) && (f.currency === "ALL" || m.currency === f.currency),
-      );
+      const ms = maturingDeals(f.horizon, ccyOf(f.currency)).filter((m) => {
+        const day = daysBetween(BUSINESS_DATE, m.maturity_date);
+        return day >= b.from && day <= Math.min(b.to, f.horizon);
+      });
       const lend = ms.filter((m) => m.direction === "LEND");
       const borrow = ms.filter((m) => m.direction === "BORROW");
-      const total = (xs: typeof ms) => xs.reduce((s, m) => s + toReporting(m.principal, m.currency, f.currency), 0);
+      const total = (xs: typeof ms) => xs.reduce((s, m) => s + principalIn(m, f.currency), 0);
       return {
         bucket: b.bucket,
         from_day: b.from,
@@ -423,9 +423,10 @@ export async function getMaturitySchedule(f: DashboardFilters): Promise<Maturity
 
 export async function getCurrencyDistribution(): Promise<CurrencyDistributionResponse> {
   await latency();
+  const rates = fx();
   const rows = CURRENCIES.map((c) => {
-    const local = OPENING[c].cash + OPENING[c].securities;
-    return { currency: c, local, base: local * FX[c] };
+    const local = cashBalance(c) + securitiesValue(c);
+    return { currency: c, local, base: local * rates[c] };
   });
   const total = rows.reduce((s, r) => s + r.base, 0);
   return {
@@ -475,32 +476,25 @@ export async function getRiskDistribution(): Promise<RiskDistributionResponse> {
   return { total: b.total, model: b.model, analyst: b.analyst, disagreements: b.disagreements, anomalies: ANOMALIES_BY_TYPE };
 }
 
-const DEAL_TYPE_LABEL: Record<string, string> = {
-  TERM_DEPOSIT: "Term deposit",
-  CALL_MONEY: "Call money",
-  REPO: "Repo",
-  TERM_PLACEMENT: "Term placement",
-  COMMERCIAL_PAPER: "Commercial paper",
-};
-
 export async function getUpcomingMaturities(f: DashboardFilters, limit = 8): Promise<{ items: UpcomingMaturity[]; total: number }> {
   await latency();
-  const all = MATURITIES.filter((m) => m.day <= f.horizon && (f.currency === "ALL" || m.currency === f.currency)).sort((a, b) => a.day - b.day);
+  const all = maturingDeals(f.horizon, ccyOf(f.currency)).sort((a, b) => a.maturity_date.localeCompare(b.maturity_date) || a.deal_reference.localeCompare(b.deal_reference));
   return {
     total: all.length,
     items: all.slice(0, limit).map((m) => {
-      const cp = cpName(m.counterpartyId);
+      const cp = cpName(m.counterparty_id);
       return {
-        reference: m.reference,
+        deal_id: m.id,
+        reference: m.deal_reference,
         counterparty: cp.name,
         counterparty_band: cp.model_band ?? "LOW",
-        deal_type: DEAL_TYPE_LABEL[m.dealType]!,
+        deal_type: DEAL_TYPE_LABEL[m.deal_type],
         direction: m.direction,
-        currency: m.currency,
-        principal: money(m.principal, m.currency),
-        principal_base: money(m.principal * FX[m.currency], BASE_CCY),
-        rate: ratio(m.rate),
-        maturity_date: addDays(BUSINESS_DATE, m.day),
+        currency: m.currency_code,
+        principal: m.principal,
+        principal_base: money(Number(m.principal) * fx()[m.currency_code as Ccy], BASE_CCY),
+        rate: m.interest_rate,
+        maturity_date: m.maturity_date,
       };
     }),
   };
@@ -529,8 +523,8 @@ export async function getFindings(f: DashboardFilters): Promise<Finding[]> {
 
   const worst = [...p.series].sort((a, b) => a.net - b.net)[0];
   if (worst && worst.net < 0) {
-    const mats = MATURITIES.filter((m) => addDays(BUSINESS_DATE, m.day) === worst.date && m.direction === "BORROW" && (f.currency === "ALL" || m.currency === f.currency));
-    const why = mats.length ? ` driven by ${mats.map((m) => `${m.reference} (${cpName(m.counterpartyId).name})`).join(", ")}` : "";
+    const mats = maturingDeals(f.horizon, ccyOf(f.currency)).filter((m) => m.maturity_date === worst.date && m.direction === "BORROW");
+    const why = mats.length ? ` driven by ${mats.map((m) => `${m.deal_reference} (${cpName(m.counterparty_id).name})`).join(", ")}` : "";
     out.push({
       id: "largest-outflow",
       severity: "warning",
@@ -560,13 +554,16 @@ export async function getFindings(f: DashboardFilters): Promise<Finding[]> {
     link: { label: "Counterparty risk", to: "/intelligence/counterparty-risk?disagreement=true" },
   });
 
-  out.push({
-    id: "overdue",
-    severity: "info",
-    title: `${OVERDUE_INFLOWS.count} overdue inflows excluded`,
-    detail: `${compact(OVERDUE_INFLOWS.amountBase)} ${BASE_CCY} expected but not received. Conservatively excluded from projections (§5.4).`,
-    link: { label: "Cash flows", to: "/data/cash-flows?overdue=true" },
-  });
+  const overdue = overdueInflows();
+  if (overdue.count > 0) {
+    out.push({
+      id: "overdue",
+      severity: "info",
+      title: `${overdue.count} overdue inflow${overdue.count > 1 ? "s" : ""} excluded`,
+      detail: `${compact(overdue.amountBase)} ${BASE_CCY} expected but not received. Conservatively excluded from projections (§5.4).`,
+      link: { label: "Cash flows", to: "/data/cash-flows?view=overdue" },
+    });
+  }
 
   return out;
 }

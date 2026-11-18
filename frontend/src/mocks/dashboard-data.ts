@@ -10,7 +10,7 @@
  * direction gives the sign.
  */
 
-import type { Band, CounterpartyType } from "./reference";
+import type { Band, CounterpartyType, DealType } from "./reference";
 
 export type { Band } from "./reference";
 
@@ -121,7 +121,7 @@ export const ANOMALIES_BY_TYPE = [
 export interface MaturingDeal {
   reference: string;
   counterpartyId: string;
-  dealType: "TERM_DEPOSIT" | "CALL_MONEY" | "REPO" | "TERM_PLACEMENT" | "COMMERCIAL_PAPER";
+  dealType: DealType;
   direction: "LEND" | "BORROW";
   currency: Ccy;
   principal: number; // in deal currency
@@ -131,26 +131,26 @@ export interface MaturingDeal {
 
 /** Principal maturities. BORROW = principal repaid (outflow), LEND = principal received (inflow). */
 export const MATURITIES: MaturingDeal[] = [
-  { reference: "MMD-2026-004131", counterpartyId: "cp-02", dealType: "CALL_MONEY", direction: "LEND", currency: "CHF", principal: 80_000_000, rate: 0.011, day: 1 },
+  { reference: "MMD-2026-004131", counterpartyId: "cp-02", dealType: "OVERNIGHT", direction: "LEND", currency: "CHF", principal: 80_000_000, rate: 0.011, day: 1 },
   { reference: "MMD-2026-003988", counterpartyId: "cp-04", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "USD", principal: 145_000_000, rate: 0.0518, day: 4 },
   { reference: "MMD-2026-004127", counterpartyId: "cp-01", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "USD", principal: 250_000_000, rate: 0.0525, day: 7 },
-  { reference: "MMD-2026-004002", counterpartyId: "cp-10", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "EUR", principal: 120_000_000, rate: 0.0341, day: 8 },
+  { reference: "MMD-2026-004002", counterpartyId: "cp-10", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "EUR", principal: 120_000_000, rate: 0.0341, day: 8 },
   { reference: "MMD-2026-003871", counterpartyId: "cp-05", dealType: "REPO", direction: "BORROW", currency: "GBP", principal: 160_000_000, rate: 0.0476, day: 11 },
   { reference: "MMD-2026-003902", counterpartyId: "cp-01", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "USD", principal: 380_000_000, rate: 0.0531, day: 14 },
-  { reference: "MMD-2026-004056", counterpartyId: "cp-12", dealType: "COMMERCIAL_PAPER", direction: "LEND", currency: "USD", principal: 90_000_000, rate: 0.0498, day: 15 },
+  { reference: "MMD-2026-004056", counterpartyId: "cp-12", dealType: "CP", direction: "LEND", currency: "USD", principal: 90_000_000, rate: 0.0498, day: 15 },
   { reference: "MMD-2026-004098", counterpartyId: "cp-03", dealType: "REPO", direction: "BORROW", currency: "JPY", principal: 21_500_000_000, rate: -0.001, day: 20 },
   { reference: "MMD-2026-003955", counterpartyId: "cp-07", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "AUD", principal: 210_000_000, rate: 0.0431, day: 21 },
   { reference: "MMD-2026-003790", counterpartyId: "cp-02", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "CHF", principal: 175_000_000, rate: 0.0095, day: 22 },
-  { reference: "MMD-2026-004011", counterpartyId: "cp-11", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "JPY", principal: 9_000_000_000, rate: 0.0012, day: 27 },
-  { reference: "MMD-2026-003812", counterpartyId: "cp-06", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "EUR", principal: 260_000_000, rate: 0.0336, day: 29 },
+  { reference: "MMD-2026-004011", counterpartyId: "cp-11", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "JPY", principal: 9_000_000_000, rate: 0.0012, day: 27 },
+  { reference: "MMD-2026-003812", counterpartyId: "cp-06", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "EUR", principal: 260_000_000, rate: 0.0336, day: 29 },
   { reference: "MMD-2026-003744", counterpartyId: "cp-04", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "USD", principal: 230_000_000, rate: 0.0522, day: 36 },
-  { reference: "MMD-2026-003699", counterpartyId: "cp-10", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "EUR", principal: 310_000_000, rate: 0.0329, day: 43 },
+  { reference: "MMD-2026-003699", counterpartyId: "cp-10", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "EUR", principal: 310_000_000, rate: 0.0329, day: 43 },
   { reference: "MMD-2026-003655", counterpartyId: "cp-09", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "EUR", principal: 140_000_000, rate: 0.0318, day: 50 },
-  { reference: "MMD-2026-003620", counterpartyId: "cp-12", dealType: "COMMERCIAL_PAPER", direction: "LEND", currency: "USD", principal: 400_000_000, rate: 0.0491, day: 57 },
+  { reference: "MMD-2026-003620", counterpartyId: "cp-12", dealType: "CP", direction: "LEND", currency: "USD", principal: 400_000_000, rate: 0.0491, day: 57 },
   { reference: "MMD-2026-003588", counterpartyId: "cp-01", dealType: "TERM_DEPOSIT", direction: "BORROW", currency: "GBP", principal: 200_000_000, rate: 0.0469, day: 64 },
-  { reference: "MMD-2026-003541", counterpartyId: "cp-13", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "USD", principal: 150_000_000, rate: 0.0612, day: 71 },
+  { reference: "MMD-2026-003541", counterpartyId: "cp-13", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "USD", principal: 150_000_000, rate: 0.0612, day: 71 },
   { reference: "MMD-2026-003502", counterpartyId: "cp-03", dealType: "REPO", direction: "BORROW", currency: "SGD", principal: 260_000_000, rate: 0.0298, day: 78 },
-  { reference: "MMD-2026-003467", counterpartyId: "cp-05", dealType: "TERM_PLACEMENT", direction: "LEND", currency: "GBP", principal: 180_000_000, rate: 0.0505, day: 85 },
+  { reference: "MMD-2026-003467", counterpartyId: "cp-05", dealType: "TERM_DEPOSIT", direction: "LEND", currency: "GBP", principal: 180_000_000, rate: 0.0505, day: 85 },
 ];
 
 /* ---------- daily flows ---------- */
