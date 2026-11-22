@@ -65,7 +65,7 @@ export function DealsPage() {
       }),
       col.accessor("counterparty_name", { id: "counterparty", header: "Counterparty", cell: (c) => <span className="block max-w-56 truncate">{c.getValue()}</span> }),
       col.accessor("direction", { header: "Direction", cell: (c) => <DealDirection direction={c.getValue()} /> }),
-      col.accessor("deal_type", { header: "Type", cell: (c) => <span className="text-fg-muted">{DEAL_TYPE_LABEL[c.getValue()]}</span>, meta: { hideBelow: "xl" } }),
+      col.accessor("deal_type", { header: "Type", cell: (c) => <span className="text-fg-muted">{DEAL_TYPE_LABEL[c.getValue()]}</span>, meta: { hideBelow: "2xl" } }),
       col.accessor("principal", {
         header: "Principal",
         cell: ({ row }) => <Money value={row.original.principal} currency={row.original.currency_code} />,

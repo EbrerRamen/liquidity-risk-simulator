@@ -226,7 +226,7 @@ export function CashAccountsPage() {
       col.accessor("name", { header: "Account", cell: (c) => <span className="block max-w-56 truncate">{c.getValue()}</span> }),
       col.accessor("account_type", { header: "Type", cell: (c) => <span className="text-fg-muted">{ACCOUNT_TYPE_LABEL[c.getValue()]}</span>, meta: { hideBelow: "xl" } }),
       col.accessor("opening_balance", { header: "Opening", enableSorting: false, cell: ({ row }) => <Money value={row.original.opening_balance} currency={row.original.currency_code} hideCurrency />, meta: { numeric: true, hideBelow: "lg" } }),
-      col.accessor("opening_date", { header: "As of", cell: (c) => <span className="num text-fg-muted">{formatDate(c.getValue())}</span>, meta: { hideBelow: "lg" } }),
+      col.accessor("opening_date", { header: "As of", cell: (c) => <span className="num text-fg-muted">{formatDate(c.getValue())}</span>, meta: { hideBelow: "2xl" } }),
       col.accessor("movement", { header: "Settled since", enableSorting: false, cell: ({ row }) => <Money value={row.original.movement} currency={row.original.currency_code} hideCurrency sign="always" colored={false} />, meta: { numeric: true, hideBelow: "md" } }),
       col.accessor("current_balance", {
         header: "Current balance",
@@ -252,7 +252,7 @@ export function CashAccountsPage() {
       summary={() =>
         total !== undefined && (
           <p className="mb-3 text-sm text-fg-muted">
-            Total cash <span className="font-semibold text-fg"><Money value={total.toFixed(2)} currency="USD" compact /></span> USD equivalent at the business date ·{" "}
+            Total cash <span className="font-semibold text-fg"><Money value={total.toFixed(2)} currency="USD" compact hideCurrency /></span> USD equivalent at the business date ·{" "}
             <Link to="/data/cash-flows?view=settled" className="text-accent hover:text-accent-strong">Settled cash flows</Link>
           </p>
         )

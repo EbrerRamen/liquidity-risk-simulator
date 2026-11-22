@@ -30,6 +30,10 @@ const SCREENS: Record<string, ReactNode> = {
   "/data/counterparties": page(() => import("@/features/counterparties/CounterpartiesPage").then((m) => m.CounterpartiesPage)),
   "/data/deals": page(() => import("@/features/deals/DealsPage").then((m) => m.DealsPage)),
   "/data/cash-flows": page(() => import("@/features/cash-flows/CashFlowsPage").then((m) => m.CashFlowsPage)),
+  "/data/funding-sources": page(() => import("@/features/funding/FundingSourcesPage").then((m) => m.FundingSourcesPage)),
+  "/data/liquid-assets": page(() => import("@/features/liquid-assets/LiquidAssetsPage").then((m) => m.LiquidAssetsPage)),
+  "/data/cash-accounts": page(() => import("@/features/cash-accounts/CashAccountsPage").then((m) => m.CashAccountsPage)),
+  "/data/currency-exposures": page(() => import("@/features/exposures/ExposuresPage").then((m) => m.ExposuresPage)),
   "/design-system": page(() => import("@/features/design-system/DesignSystemPage").then((m) => m.DesignSystemPage)),
 };
 

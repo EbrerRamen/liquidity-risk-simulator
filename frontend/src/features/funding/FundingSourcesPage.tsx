@@ -37,7 +37,7 @@ const col = createColumnHelper<FundingListItem>();
 const TREATMENT: Record<FundingListItem["liquidity_treatment"], { label: string; tone: Tone; explain: string }> = {
   FUNDING: { label: "Funding", tone: "neutral", explain: "A deposit pool: it funds the balance sheet. It has no headroom and no single provider, so it is excluded from counterparty concentration (§5.10)." },
   HEADROOM_IF_INCLUDED: {
-    label: "Headroom if included",
+    label: "If included",
     tone: "accent",
     explain: "Committed headroom counts towards opening liquidity only when 'include committed facilities' is switched on. It is off by default, because lines may not be honoured in stress (§5.5).",
   },
@@ -372,7 +372,7 @@ export function FundingSourcesPage() {
         header: "Provider",
         enableSorting: false,
         cell: ({ row }) => <span className="block max-w-48 truncate text-fg-muted">{row.original.counterparty_name ?? (isDepositPool(row.original.funding_type) ? "Granular" : "–")}</span>,
-        meta: { hideBelow: "xl" },
+        meta: { hideBelow: "2xl" },
       }),
       col.accessor("available_amount", { header: "Limit / balance", cell: ({ row }) => <Money value={row.original.available_amount} currency={row.original.currency_code} />, meta: { numeric: true, hint: "Sorted by USD equivalent" } }),
       col.accessor("utilized_amount", {

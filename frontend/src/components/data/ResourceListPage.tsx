@@ -145,6 +145,8 @@ export function ResourceListPage<Item>({
   };
 
   const segmented = filters.filter((f): f is Extract<FilterDef, { kind: "segmented" }> => f.kind === "segmented");
+  // Hidden filters only produce chips; with nothing else to show, skip the toolbar band entirely.
+  const hasToolbar = !!searchPlaceholder || filters.some((f) => f.kind !== "hidden") || chips.length > 0;
 
   return (
     <>
@@ -171,6 +173,7 @@ export function ResourceListPage<Item>({
       {summary?.(params)}
 
       <section className="rounded-lg border border-line bg-surface-1" aria-label={title}>
+        {hasToolbar && (
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
             {searchPlaceholder && (
@@ -219,6 +222,7 @@ export function ResourceListPage<Item>({
           </div>
           <ActiveFilters filters={chips} onClearAll={clearAll} />
         </div>
+        )}
 
         <DataTable
           caption={title}
