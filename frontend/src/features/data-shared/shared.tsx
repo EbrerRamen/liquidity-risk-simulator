@@ -123,9 +123,20 @@ export function DealDirection({ direction }: { direction: "LEND" | "BORROW" }) {
  * projection and the dashboard together; refreshing everything keeps every
  * open screen consistent.
  */
-export function useWrite<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>) {
+export function useWrite<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>, resource?: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: fn, onSuccess: () => void qc.invalidateQueries() });
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (result) => {
+      // Store the record the server returned first, so an editor opened straight
+      // after a save starts from the saved version rather than a stale copy
+      // (which would remount mid-typing or conflict with the user's own save).
+      if (resource && result && typeof result === "object" && "id" in result) {
+        qc.setQueryData([resource, "detail", (result as { id: string }).id], result);
+      }
+      void qc.invalidateQueries();
+    },
+  });
 }
 
 export function useCan() {

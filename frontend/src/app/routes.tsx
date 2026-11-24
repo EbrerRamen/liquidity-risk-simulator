@@ -34,6 +34,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/data/liquid-assets": page(() => import("@/features/liquid-assets/LiquidAssetsPage").then((m) => m.LiquidAssetsPage)),
   "/data/cash-accounts": page(() => import("@/features/cash-accounts/CashAccountsPage").then((m) => m.CashAccountsPage)),
   "/data/currency-exposures": page(() => import("@/features/exposures/ExposuresPage").then((m) => m.ExposuresPage)),
+  "/data/fx-rates": page(() => import("@/features/fx-rates/FxRatesPage").then((m) => m.FxRatesPage)),
   "/design-system": page(() => import("@/features/design-system/DesignSystemPage").then((m) => m.DesignSystemPage)),
 };
 

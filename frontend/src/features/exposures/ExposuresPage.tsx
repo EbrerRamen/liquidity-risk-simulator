@@ -178,8 +178,8 @@ function ExposureEditor({ id, nav }: { id: string | null; nav: PanelNav }) {
   const t0 = system.businessDate;
   const cps = useCounterpartyOptions();
   const entity = useQuery({ queryKey: ["exposures", "detail", id], queryFn: () => exposuresApi.get(id!), enabled: id !== null });
-  const create = useWrite((i: ExposureInput) => exposuresApi.create(i));
-  const update = useWrite(({ id: xid, patch }: { id: string; patch: Partial<ExposureInput> & { version: number } }) => exposuresApi.update(xid, patch));
+  const create = useWrite((i: ExposureInput) => exposuresApi.create(i), "exposures");
+  const update = useWrite(({ id: xid, patch }: { id: string; patch: Partial<ExposureInput> & { version: number } }) => exposuresApi.update(xid, patch), "exposures");
   const [dirty, setDirty] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
   const schema = z

@@ -45,8 +45,8 @@ function CashFlowForm({
 }) {
   const { system } = useSession();
   const cps = useCounterpartyOptions();
-  const create = useWrite((i: CashFlowInput) => cashFlowsApi.create(i));
-  const update = useWrite(({ id, patch }: { id: string; patch: Partial<CashFlowInput> & { version: number } }) => cashFlowsApi.update(id, patch));
+  const create = useWrite((i: CashFlowInput) => cashFlowsApi.create(i), "cash-flows");
+  const update = useWrite(({ id, patch }: { id: string; patch: Partial<CashFlowInput> & { version: number } }) => cashFlowsApi.update(id, patch), "cash-flows");
   const [banner, setBanner] = useState<Banner | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(schemaFor(system.businessDate)),

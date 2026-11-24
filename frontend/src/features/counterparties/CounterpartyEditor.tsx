@@ -1,36 +1,16 @@
-import { useEffect, useId, useState } from "react";
-import { Controller, useForm, type UseFormSetError } from "react-hook-form";
+import { useId, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RotateCw } from "lucide-react";
-import { isApiError } from "@/api/problem";
 import type { Counterparty } from "@/api/counterparties";
 import { useSession } from "@/app/session";
-import { Alert, Button, ConfirmDialog, Drawer, Field, Input, SegmentedControl, Select, Skeleton, Switch, useToast } from "@/components/ui";
+import { applyServerErrors, EditorDrawer, FormBanner, useReportDirty, type Banner } from "@/components/data";
+import { Field, Input, SegmentedControl, Select, Switch, useToast } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { BANDS, BAND_LABEL, COUNTERPARTY_TYPES, COUNTERPARTY_TYPE_LABEL, COUNTRIES, RATINGS, isInvestmentGrade } from "@/mocks/reference";
 import { useCounterparty, useCreateCounterparty, useUpdateCounterparty } from "./queries";
 import { counterpartySchema, type CounterpartyFormValues } from "./schema";
 
 const FIELDS = ["name", "counterparty_type", "country_code", "credit_rating", "risk_classification", "is_active"] as const;
-
-/**
- * Put server field errors (422 validation, 409 duplicate) onto the matching
- * inputs. Returns whatever is left over for a banner.
- */
-function applyServerErrors(err: unknown, setError: UseFormSetError<CounterpartyFormValues>): { title: string; detail?: string; requestId?: string; conflict?: boolean } | null {
-  if (!isApiError(err)) return { title: "Couldn't save", detail: "The server couldn't be reached. Your changes are still here; try again." };
-  const p = err.problem;
-  if (p.type.endsWith("/conflict")) return { title: "Someone else changed this counterparty", detail: p.detail, conflict: true };
-  let placed = 0;
-  for (const e of p.errors ?? []) {
-    if ((FIELDS as readonly string[]).includes(e.field)) {
-      setError(e.field as (typeof FIELDS)[number], { type: "server", message: e.message.charAt(0).toUpperCase() + e.message.slice(1) });
-      placed++;
-    }
-  }
-  if (placed > 0 && placed === (p.errors?.length ?? 0)) return null;
-  return { title: p.title, detail: p.detail, requestId: p.request_id };
-}
 
 const SORTED_COUNTRIES = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -52,7 +32,7 @@ function CounterpartyForm({
   onReloadLatest: () => void;
 }) {
   const { system } = useSession();
-  const [banner, setBanner] = useState<ReturnType<typeof applyServerErrors>>(null);
+  const [banner, setBanner] = useState<Banner | null>(null);
 
   const form = useForm<CounterpartyFormValues>({
     resolver: zodResolver(counterpartySchema),
@@ -72,7 +52,7 @@ function CounterpartyForm({
   const { errors, isDirty } = formState;
 
   // Report dirtiness up so closing the panel can ask first.
-  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
+  useReportDirty(isDirty, onDirtyChange);
 
   const rating = watch("credit_rating");
   const ratingChanged = entity ? rating !== entity.credit_rating : !!rating;
@@ -91,26 +71,13 @@ function CounterpartyForm({
       const saved = await update.mutateAsync({ id: entity.id, patch: { ...patch, version: entity.version } });
       onSaved(saved, false);
     } catch (err) {
-      setBanner(applyServerErrors(err, setError));
+      setBanner(applyServerErrors(err, setError, FIELDS));
     }
   });
 
   return (
     <form id={formId} onSubmit={onSubmit} noValidate className="flex flex-col gap-5 px-5 py-5">
-      {banner && (
-        <Alert tone={banner.conflict ? "warning" : "negative"} title={banner.title} live>
-          {banner.detail}
-          {banner.conflict && (
-            <div className="mt-2">
-              <Button size="sm" icon={<RotateCw />} onClick={onReloadLatest}>
-                Load latest version
-              </Button>
-              <span className="ml-2 text-2xs text-fg-faint">Discards your unsaved edits.</span>
-            </div>
-          )}
-          {banner.requestId && <span className="mt-1 block font-mono text-2xs text-fg-faint">Request ID {banner.requestId}</span>}
-        </Alert>
-      )}
+      <FormBanner banner={banner} onReloadLatest={onReloadLatest} />
 
       <Field label="Name" required error={errors.name?.message}>
         {(p) => <Input {...p} {...register("name")} autoComplete="off" placeholder="e.g. Northbridge Capital Bank" />}
@@ -222,76 +189,39 @@ export function CounterpartyEditor({ id, onClose, onSaved }: { id: string | null
   const toast = useToast();
   const entity = useCounterparty(id);
   const [dirty, setDirty] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const create = useCreateCounterparty();
   const update = useUpdateCounterparty();
-  const saving = create.isPending || update.isPending;
-
-  const requestClose = () => (dirty ? setConfirmDiscard(true) : onClose());
-  const loading = id !== null && entity.status === "pending";
 
   return (
-    <>
-      <Drawer
-        open
-        onClose={requestClose}
-        title={id ? `Edit ${entity.data?.name ?? "counterparty"}` : "New counterparty"}
-        subtitle={id && entity.data ? <span className="font-mono">{entity.data.id} · version {entity.data.version}</span> : "Fields marked * are required."}
-        footer={
-          <>
-            <Button onClick={requestClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button type="submit" form={formId} variant="primary" loading={saving} disabled={loading || (!!id && !dirty)}>
-              {id ? "Save changes" : "Create counterparty"}
-            </Button>
-          </>
-        }
-      >
-        {loading ? (
-          <div className="flex flex-col gap-5 p-5">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} className="flex flex-col gap-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-8 w-full" />
-              </div>
-            ))}
-          </div>
-        ) : id && entity.status === "error" ? (
-          <div className="p-5">
-            <Alert tone="negative" title="Couldn't load this counterparty">{entity.error.message}</Alert>
-          </div>
-        ) : (
-          <CounterpartyForm
-            // Remount on a newer version so "Load latest" shows the server's values.
-            key={entity.data ? `${entity.data.id}-${entity.data.version}` : "new"}
-            formId={formId}
-            entity={entity.data ?? null}
-            create={create}
-            update={update}
-            onDirtyChange={setDirty}
-            onReloadLatest={() => {
-              void entity.refetch().then(() => toast.show({ tone: "info", title: "Loaded the latest version" }));
-            }}
-            onSaved={(saved, created) => {
-              setDirty(false);
-              onSaved(saved, created);
-            }}
-          />
-        )}
-      </Drawer>
-      <ConfirmDialog
-        open={confirmDiscard}
-        title="Discard unsaved changes?"
-        body="Your edits to this counterparty haven't been saved."
-        confirmLabel="Discard"
-        tone="danger"
-        onCancel={() => setConfirmDiscard(false)}
-        onConfirm={() => {
-          setConfirmDiscard(false);
-          onClose();
+    <EditorDrawer
+      noun="counterparty"
+      title={id ? `Edit ${entity.data?.name ?? "counterparty"}` : "New counterparty"}
+      subtitle={id && entity.data ? <span className="font-mono">{entity.data.id} · version {entity.data.version}</span> : undefined}
+      formId={formId}
+      isNew={id === null}
+      dirty={dirty}
+      saving={create.isPending || update.isPending}
+      loading={id !== null && entity.status === "pending"}
+      loadError={id && entity.status === "error" ? entity.error.message : null}
+      submitLabel={id ? "Save changes" : "Create counterparty"}
+      onClose={onClose}
+    >
+      <CounterpartyForm
+        // Remount on a newer version so "Load latest" shows the server's values.
+        key={entity.data ? `${entity.data.id}-${entity.data.version}` : "new"}
+        formId={formId}
+        entity={entity.data ?? null}
+        create={create}
+        update={update}
+        onDirtyChange={setDirty}
+        onReloadLatest={() => {
+          void entity.refetch().then(() => toast.show({ tone: "info", title: "Loaded the latest version" }));
+        }}
+        onSaved={(saved, created) => {
+          setDirty(false);
+          onSaved(saved, created);
         }}
       />
-    </>
+    </EditorDrawer>
   );
 }

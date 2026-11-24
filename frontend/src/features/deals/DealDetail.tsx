@@ -28,7 +28,7 @@ export function DealDetail({ id, nav }: { id: string; nav: PanelNav }) {
   const toast = useToast();
   const q = useQuery({ queryKey: ["deals", "detail", id], queryFn: () => dealsApi.get(id) });
   const flows = useQuery({ queryKey: ["deals", "flows", id], queryFn: () => dealsApi.cashFlows(id) });
-  const cancel = useWrite((d: Deal) => dealsApi.cancel(d.id, d.version));
+  const cancel = useWrite((d: Deal) => dealsApi.cancel(d.id, d.version), "deals");
   const remove = useWrite((d: Deal) => dealsApi.remove(d.id, d.version));
   const [confirm, setConfirm] = useState<"cancel" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);

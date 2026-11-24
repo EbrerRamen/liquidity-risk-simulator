@@ -209,8 +209,8 @@ function FundingEditor({ id, nav }: { id: string | null; nav: PanelNav }) {
   const { system } = useSession();
   const cps = useCounterpartyOptions();
   const entity = useQuery({ queryKey: ["funding", "detail", id], queryFn: () => fundingApi.get(id!), enabled: id !== null });
-  const create = useWrite((i: FundingInput) => fundingApi.create(i));
-  const update = useWrite(({ id: fid, patch }: { id: string; patch: Partial<FundingInput> & { version: number } }) => fundingApi.update(fid, patch));
+  const create = useWrite((i: FundingInput) => fundingApi.create(i), "funding");
+  const update = useWrite(({ id: fid, patch }: { id: string; patch: Partial<FundingInput> & { version: number } }) => fundingApi.update(fid, patch), "funding");
   const [dirty, setDirty] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
   const e = entity.data;

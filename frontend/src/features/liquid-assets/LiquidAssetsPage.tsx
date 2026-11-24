@@ -170,8 +170,8 @@ function AssetEditor({ id, nav }: { id: string | null; nav: PanelNav }) {
   const { system } = useSession();
   const cps = useCounterpartyOptions();
   const entity = useQuery({ queryKey: ["liquid-assets", "detail", id], queryFn: () => liquidAssetsApi.get(id!), enabled: id !== null });
-  const create = useWrite((i: LiquidAssetInput) => liquidAssetsApi.create(i));
-  const update = useWrite(({ id: aid, patch }: { id: string; patch: Partial<LiquidAssetInput> & { version: number } }) => liquidAssetsApi.update(aid, patch));
+  const create = useWrite((i: LiquidAssetInput) => liquidAssetsApi.create(i), "liquid-assets");
+  const update = useWrite(({ id: aid, patch }: { id: string; patch: Partial<LiquidAssetInput> & { version: number } }) => liquidAssetsApi.update(aid, patch), "liquid-assets");
   const [dirty, setDirty] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
   const e = entity.data;

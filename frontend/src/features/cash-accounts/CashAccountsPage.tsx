@@ -108,8 +108,8 @@ function AccountEditor({ id, nav, taken }: { id: string | null; nav: PanelNav; t
   const { system } = useSession();
   const t0 = system.businessDate;
   const entity = useQuery({ queryKey: ["cash-accounts", "detail", id], queryFn: () => cashAccountsApi.get(id!), enabled: id !== null });
-  const create = useWrite((i: CashAccountInput) => cashAccountsApi.create(i));
-  const update = useWrite(({ id: aid, patch }: { id: string; patch: Partial<CashAccountInput> & { version: number } }) => cashAccountsApi.update(aid, patch));
+  const create = useWrite((i: CashAccountInput) => cashAccountsApi.create(i), "cash-accounts");
+  const update = useWrite(({ id: aid, patch }: { id: string; patch: Partial<CashAccountInput> & { version: number } }) => cashAccountsApi.update(aid, patch), "cash-accounts");
   const [dirty, setDirty] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
   const free = CURRENCY_LIST.filter((c) => !taken.includes(c));

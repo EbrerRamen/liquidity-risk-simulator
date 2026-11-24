@@ -177,8 +177,8 @@ function DealForm({
   const { system } = useSession();
   const t0 = system.businessDate;
   const cps = useCounterpartyOptions();
-  const create = useWrite((input: DealInput) => dealsApi.create(input));
-  const update = useWrite(({ id, patch }: { id: string; patch: Partial<DealInput> & { version: number } }) => dealsApi.update(id, patch));
+  const create = useWrite((input: DealInput) => dealsApi.create(input), "deals");
+  const update = useWrite(({ id, patch }: { id: string; patch: Partial<DealInput> & { version: number } }) => dealsApi.update(id, patch), "deals");
   const [banner, setBanner] = useState<Banner | null>(null);
   const schema = useMemo(() => dealSchema(t0), [t0]);
 

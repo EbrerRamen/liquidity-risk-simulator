@@ -1,68 +1,21 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Check, Copy, MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
 import { isApiError } from "@/api/problem";
 import type { Counterparty, CounterpartySummary, RatingHistoryItem } from "@/api/counterparties";
 import { useSession } from "@/app/session";
+import { DetailSection, DetailSkeleton, MetricTile, RecordSection } from "@/components/data";
 import { Alert, Badge, Button, ConfirmDialog, Drawer, IconButton, Menu, Money, RiskBadge, Skeleton, useToast } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { formatDate, formatPercent } from "@/lib/format";
 import { BAND_LABEL, COUNTERPARTY_TYPE_LABEL, RATINGS, countryName, isInvestmentGrade } from "@/mocks/reference";
 import { useCounterparty, useCounterpartySummary, useDeleteCounterparty, useRatingHistory, useUpdateCounterparty } from "./queries";
 
-function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="border-b border-line px-5 py-4 last:border-b-0">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="eyebrow">{title}</h3>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Metric({ label, children, to }: { label: string; children: ReactNode; to?: string }) {
-  const body = (
-    <>
-      <div className="text-xs text-fg-muted">{label}</div>
-      <div className="mt-0.5 text-base font-semibold text-fg">{children}</div>
-    </>
-  );
-  return to ? (
-    <Link to={to} className="group rounded-md border border-line bg-surface-2 px-3 py-2.5 hover:border-line-strong">
-      {body}
-    </Link>
-  ) : (
-    <div className="rounded-md border border-line bg-surface-2 px-3 py-2.5">{body}</div>
-  );
-}
-
-function CopyId({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        void navigator.clipboard?.writeText(id).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-      }
-      className="inline-flex items-center gap-1 rounded-sm font-mono text-xs text-fg-muted hover:text-fg"
-      title="Copy ID"
-    >
-      {id}
-      {copied ? <Check className="size-3 text-positive" aria-label="Copied" /> : <Copy className="size-3" aria-hidden />}
-    </button>
-  );
-}
-
 function RiskSection({ c, s }: { c: Counterparty; s?: CounterpartySummary }) {
   const model = s?.latest_assessment;
   const disagrees = model && model.band !== c.risk_classification;
   return (
-    <Section title="Risk">
+    <DetailSection title="Risk">
       <dl className="grid grid-cols-2 gap-3">
         <div>
           <dt className="mb-1 text-xs text-fg-muted">Analyst classification</dt>
@@ -95,13 +48,13 @@ function RiskSection({ c, s }: { c: Counterparty; s?: CounterpartySummary }) {
           </Link>
         </Alert>
       )}
-    </Section>
+    </DetailSection>
   );
 }
 
 function RatingSection({ c, history }: { c: Counterparty; history?: RatingHistoryItem[] }) {
   return (
-    <Section title="Credit rating">
+    <DetailSection title="Credit rating">
       <div className="mb-3 flex items-center gap-2">
         <span className="text-xl font-semibold text-fg">{c.credit_rating}</span>
         <Badge tone={isInvestmentGrade(c.credit_rating) ? "neutral" : "caution"}>
@@ -139,43 +92,43 @@ function RatingSection({ c, history }: { c: Counterparty; history?: RatingHistor
           })}
         </ol>
       )}
-    </Section>
+    </DetailSection>
   );
 }
 
 function ExposureSection({ c, s }: { c: Counterparty; s?: CounterpartySummary }) {
   if (!s) {
     return (
-      <Section title="Exposure">
+      <DetailSection title="Exposure">
         <div className="grid grid-cols-2 gap-2">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-14" />
           ))}
         </div>
-      </Section>
+      </DetailSection>
     );
   }
   const pb = s.payment_behaviour;
   const ccy = s.exposure.currency;
   return (
     <>
-      <Section title={`Exposure · ${ccy} equivalent`}>
+      <DetailSection title={`Exposure · ${ccy} equivalent`}>
         <div className="grid grid-cols-2 gap-2">
-          <Metric label="Funding provided" to={`/liquidity/concentration?basis=funding&counterparty_id=${c.id}`}>
+          <MetricTile label="Funding provided" to={`/liquidity/concentration?basis=funding&counterparty_id=${c.id}`}>
             <Money value={s.exposure.funding} currency={ccy} compact tabular={false} />
-          </Metric>
-          <Metric label="Credit exposure" to={`/liquidity/concentration?basis=credit&counterparty_id=${c.id}`}>
+          </MetricTile>
+          <MetricTile label="Credit exposure" to={`/liquidity/concentration?basis=credit&counterparty_id=${c.id}`}>
             <Money value={s.exposure.credit} currency={ccy} compact tabular={false} />
-          </Metric>
-          <Metric label="Open deals" to={`/data/deals?counterparty_id=${c.id}`}>
+          </MetricTile>
+          <MetricTile label="Open deals" to={`/data/deals?counterparty_id=${c.id}`}>
             {s.open_deals}
-          </Metric>
-          <Metric label="Cash flows" to={`/data/cash-flows?counterparty_id=${c.id}`}>
+          </MetricTile>
+          <MetricTile label="Cash flows" to={`/data/cash-flows?counterparty_id=${c.id}`}>
             {s.cash_flows}
-          </Metric>
+          </MetricTile>
         </div>
-      </Section>
-      <Section title={`Payment behaviour · last ${pb.window_days} days`}>
+      </DetailSection>
+      <DetailSection title={`Payment behaviour · last ${pb.window_days} days`}>
         {pb.settled === 0 ? (
           <p className="text-sm text-fg-faint">No settled cash flows in this window.</p>
         ) : (
@@ -195,30 +148,8 @@ function ExposureSection({ c, s }: { c: Counterparty; s?: CounterpartySummary })
           </dl>
         )}
         <p className="mt-2 text-xs text-fg-faint">Across {pb.settled} settled cash flows.</p>
-      </Section>
+      </DetailSection>
     </>
-  );
-}
-
-function RecordSection({ c }: { c: Counterparty }) {
-  const rows: [string, ReactNode][] = [
-    ["ID", <CopyId key="id" id={c.id} />],
-    ["Created", `${formatDate(c.created_at.slice(0, 10))} · ${c.created_by ?? "seed data"}`],
-    ["Last updated", `${formatDate(c.updated_at.slice(0, 10))} · ${c.updated_by ?? "seed data"}`],
-    ["Version", <span key="v" className="num">{c.version}</span>],
-    ["Source", c.is_synthetic ? "Synthetic (generated)" : "Entered manually"],
-  ];
-  return (
-    <Section title="Record">
-      <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-        {rows.map(([k, v]) => (
-          <div key={k} className="contents">
-            <dt className="text-fg-muted">{k}</dt>
-            <dd className="text-fg">{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </Section>
   );
 }
 
@@ -315,11 +246,7 @@ export function CounterpartyDetail({ id, onClose, onEdit, onDeleted }: { id: str
         headerActions={headerActions}
       >
         {q.status === "pending" ? (
-          <div className="flex flex-col gap-4 p-5">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-28 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
+          <DetailSkeleton />
         ) : q.status === "error" ? (
           <div className="p-5">
             <Alert tone="negative" title={isApiError(q.error) && q.error.status === 404 ? "This counterparty no longer exists" : "Couldn't load this counterparty"}>
@@ -338,7 +265,7 @@ export function CounterpartyDetail({ id, onClose, onEdit, onDeleted }: { id: str
             <RiskSection c={c!} s={summary.data} />
             <ExposureSection c={c!} s={summary.data} />
             <RatingSection c={c!} history={ratings.data} />
-            <RecordSection c={c!} />
+            <RecordSection record={c!} />
             <div className="px-5 pb-5">
               <Link to={`/data/deals?counterparty_id=${id}`} className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-strong">
                 View this counterparty's deals <ArrowRight className="size-3.5" aria-hidden />

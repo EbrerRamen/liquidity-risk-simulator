@@ -20,7 +20,7 @@ const SETTLE_FIELDS = ["actual_date", "settled_amount", "note"] as const;
 function SettleDialog({ flow, onClose, onDone }: { flow: CashFlow; onClose: () => void; onDone: () => void }) {
   const { system } = useSession();
   const t0 = system.businessDate;
-  const settle = useWrite((v: { actual_date: string; settled_amount: string; note: string }) => cashFlowsApi.settle(flow.id, { ...v, version: flow.version }));
+  const settle = useWrite((v: { actual_date: string; settled_amount: string; note: string }) => cashFlowsApi.settle(flow.id, { ...v, version: flow.version }), "cash-flows");
   const [banner, setBanner] = useState<Banner | null>(null);
   const schema = z
     .object({
@@ -96,7 +96,7 @@ function SettleDialog({ flow, onClose, onDone }: { flow: CashFlow; onClose: () =
 }
 
 function FailDialog({ flow, onClose, onDone }: { flow: CashFlow; onClose: () => void; onDone: () => void }) {
-  const fail = useWrite((note: string) => cashFlowsApi.fail(flow.id, { version: flow.version, note }));
+  const fail = useWrite((note: string) => cashFlowsApi.fail(flow.id, { version: flow.version, note }), "cash-flows");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const dealPrincipal = !!flow.deal_id && flow.category === "PRINCIPAL";
@@ -153,7 +153,7 @@ export function CashFlowDetail({ id, nav }: { id: string; nav: PanelNav }) {
   const can = useCan();
   const toast = useToast();
   const q = useQuery({ queryKey: ["cash-flows", "detail", id], queryFn: () => cashFlowsApi.get(id) });
-  const cancel = useWrite((f: CashFlow) => cashFlowsApi.cancel(f.id, f.version));
+  const cancel = useWrite((f: CashFlow) => cashFlowsApi.cancel(f.id, f.version), "cash-flows");
   const remove = useWrite((f: CashFlow) => cashFlowsApi.remove(f.id, f.version));
   const [dialog, setDialog] = useState<"settle" | "fail" | "cancel" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
