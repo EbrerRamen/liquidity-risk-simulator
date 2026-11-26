@@ -2,7 +2,7 @@
 
 A full-stack platform for analysing liquidity positions, money-market maturities, counterparty and currency exposures, and liquidity stress scenarios, with explainable ML risk intelligence.
 
-> **Status:** The frontend is being built ahead of the backend, against an in-browser mock API. Sign-in, the app shell, the dashboard and all eight data-management screens work. The backend, financial engines, stress testing, ML and reports are not started. See the [development checklist](CHECKLIST.md) for details.
+> **Status:** The frontend is being built ahead of the backend, against an in-browser mock API. Sign-in, the app shell, the dashboard, all eight data-management screens and the Admin screens (users, audit log, settings) work. The backend, financial engines, stress testing, ML and reports are not started. See the [development checklist](CHECKLIST.md) for details.
 >
 > **All data in this project is synthetic.** The metrics are simulation metrics, not regulatory ratios.
 
@@ -24,7 +24,7 @@ Open http://localhost:5173 and sign in with one of the demo accounts listed on t
 | `analyst@lrs.local` | Risk analyst |
 | `viewer@lrs.local` | Viewer (read-only) |
 
-Sign-in and data come from the mock API in `frontend/src/mocks/`. Edits are kept in `sessionStorage`, so they survive a reload but not a new tab. Run `npm install` again after pulling changes to `package.json`.
+Admins can add more accounts under Admin › Users. Sign-in and data come from the mock API in `frontend/src/mocks/`. Edits are kept in `sessionStorage`, so they survive a reload but not a new tab. Run `npm install` again after pulling changes to `package.json`.
 
 Other scripts: `npm run typecheck` and `npm run build`.
 

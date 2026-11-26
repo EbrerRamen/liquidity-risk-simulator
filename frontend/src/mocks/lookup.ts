@@ -1,6 +1,6 @@
 /** Small read helpers shared by mock endpoints. */
-import { BASE_CCY, BUSINESS_DATE } from "./dashboard-data";
-import { db } from "./db";
+import { BASE_CCY } from "./dashboard-data";
+import { businessDate, db } from "./db";
 import { ratesAt } from "./positions";
 import type { CurrencyCode } from "./reference";
 import { isBusinessDay } from "./schedule";
@@ -9,7 +9,7 @@ export const cpName = (id: string | null | undefined): string | null => (id ? (d
 
 /** Base-currency equivalent at S_c(T0). */
 export function toBase(amount: string | number, ccy: CurrencyCode): number {
-  return Number(amount) * ratesAt(BUSINESS_DATE)[ccy];
+  return Number(amount) * ratesAt(businessDate())[ccy];
 }
 
 export const money = (n: number, ccy: string) => n.toFixed(ccy === "JPY" ? 0 : 2);
@@ -27,4 +27,4 @@ export function weekendMessage(iso: string): string | null {
   return `${fmtDate(iso)} is a ${WEEKDAY.format(new Date(iso + "T00:00:00Z"))}; the next business day is ${fmtDate(next)}`;
 }
 
-export { BASE_CCY, BUSINESS_DATE };
+export { BASE_CCY, businessDate };

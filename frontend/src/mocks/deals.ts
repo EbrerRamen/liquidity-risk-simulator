@@ -9,7 +9,7 @@ import { cashFlowItem } from "./cashFlows";
 import { crud, csvIn, decimalPlaces, inRange, isDec, isIsoDate, type FieldError } from "./crud";
 import { audit, commit, db, nextId, nowIso, type CashFlowRecord, type DealRecord } from "./db";
 import { latency } from "./latency";
-import { BASE_CCY, BUSINESS_DATE, cpName, fmtDate, money, toBase, weekendMessage } from "./lookup";
+import { BASE_CCY, businessDate, cpName, fmtDate, money, toBase, weekendMessage } from "./lookup";
 import { CURRENCY_LIST, DAY_COUNTS, DEAL_STATUSES, DEAL_TYPES, FREQUENCIES } from "./reference";
 import { buildSchedule, following } from "./schedule";
 import { problem, requireUser } from "./server";
@@ -100,11 +100,11 @@ function validateDeal(i: DealInput): FieldError[] {
   else if (decimalPlaces(i.interest_rate) > 8) e.push({ field: "interest_rate", message: "use at most 6 decimal places in percent" });
 
   if (!isIsoDate(i.deal_date)) e.push({ field: "deal_date", message: "enter the trade date" });
-  else if (i.deal_date > BUSINESS_DATE) e.push({ field: "deal_date", message: `can't be after the business date (${fmtDate(BUSINESS_DATE)})` });
+  else if (i.deal_date > businessDate()) e.push({ field: "deal_date", message: `can't be after the business date (${fmtDate(businessDate())})` });
   if (!isIsoDate(i.value_date)) e.push({ field: "value_date", message: "enter the value date" });
   else {
     const wk = weekendMessage(i.value_date);
-    if (i.value_date <= BUSINESS_DATE) e.push({ field: "value_date", message: `must be after the business date; ${fmtDate(BUSINESS_DATE)} is closed` });
+    if (i.value_date <= businessDate()) e.push({ field: "value_date", message: `must be after the business date; ${fmtDate(businessDate())} is closed` });
     else if (wk) e.push({ field: "value_date", message: wk });
     else if (isIsoDate(i.deal_date) && i.value_date < i.deal_date) e.push({ field: "value_date", message: "can't be before the trade date" });
   }
@@ -232,7 +232,7 @@ export async function createDeal(input: DealInput): Promise<Deal> {
   };
   db().deals = [...db().deals, deal];
   db().cashFlows = [...db().cashFlows, ...projectedFlows(deal, user.name, now)];
-  audit({ actor: user.name, action: "CREATE", entity_type: "deal", entity_id: deal.id, summary: `Booked ${ref} (${input.direction} ${input.principal} ${input.currency_code})` });
+  audit({ actor: user, action: "CREATE", entity_type: "deal", entity_id: deal.id, summary: `Booked ${ref} (${input.direction} ${input.principal} ${input.currency_code})` });
   commit();
   return toEntity(deal);
 }
@@ -266,7 +266,7 @@ export async function updateDeal(id: string, patch: Partial<DealInput> & { versi
     d.updated_by = user.name;
     // Regenerate projected flows in the same transaction (§5.3 lifecycle).
     db().cashFlows = [...db().cashFlows.filter((f) => !(f.deal_id === id && f.status === "PROJECTED")), ...projectedFlows(d, user.name, now)];
-    audit({ actor: user.name, action: "UPDATE", entity_type: "deal", entity_id: id, summary: `Amended ${d.deal_reference}; schedule regenerated`, changes: diff });
+    audit({ actor: user, action: "UPDATE", entity_type: "deal", entity_id: id, summary: `Amended ${d.deal_reference}; schedule regenerated`, changes: diff });
     commit();
   }
   return toEntity(d);
@@ -290,7 +290,7 @@ export async function cancelDeal(id: string, version: number): Promise<Deal> {
   d.version += 1;
   d.updated_at = now;
   d.updated_by = user.name;
-  audit({ actor: user.name, action: "CANCEL", entity_type: "deal", entity_id: id, summary: `Cancelled ${d.deal_reference}; ${n} projected flows cancelled` });
+  audit({ actor: user, action: "CANCEL", entity_type: "deal", entity_id: id, summary: `Cancelled ${d.deal_reference}; ${n} projected flows cancelled` });
   commit();
   return toEntity(d);
 }
@@ -304,7 +304,7 @@ export async function deleteDeal(id: string, version: number): Promise<void> {
   if (locked(d)) throw problem(409, "in-use", "Has settled flows", "Cash flows of this deal have settled. Cancel it instead, so the history stays intact.", {}, instance);
   db().deals = db().deals.filter((x) => x.id !== id);
   db().cashFlows = db().cashFlows.filter((f) => f.deal_id !== id);
-  audit({ actor: user.name, action: "DELETE", entity_type: "deal", entity_id: id, summary: `Deleted ${d.deal_reference}` });
+  audit({ actor: user, action: "DELETE", entity_type: "deal", entity_id: id, summary: `Deleted ${d.deal_reference}` });
   commit();
 }
 
@@ -323,7 +323,7 @@ export async function dealSummary(f: DealFilters): Promise<DealSummary> {
   requireUser("VIEWER");
   const live = filterRows(db().deals, f).filter((d) => d.settlement_status === "PENDING" || d.settlement_status === "SETTLED");
   const sum = (dir: "LEND" | "BORROW") => live.filter((d) => d.direction === dir).reduce((s, d) => s + toBase(d.principal, d.currency_code), 0);
-  const in30 = new Date(Date.parse(BUSINESS_DATE + "T00:00:00Z") + 30 * 86_400_000).toISOString().slice(0, 10);
+  const in30 = new Date(Date.parse(businessDate() + "T00:00:00Z") + 30 * 86_400_000).toISOString().slice(0, 10);
   const next = [...live].sort((a, b) => a.maturity_date.localeCompare(b.maturity_date))[0];
   return {
     base_currency: BASE_CCY,

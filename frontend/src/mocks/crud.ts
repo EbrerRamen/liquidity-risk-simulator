@@ -6,8 +6,7 @@
  */
 import type { Page, SortSpec } from "@/api/types";
 import type { Role, SessionUser } from "@/app/session";
-import { BUSINESS_DATE } from "./dashboard-data";
-import { audit, commit, nextId, nowIso } from "./db";
+import { audit, businessDate, commit, nextId, nowIso } from "./db";
 import { latency } from "./latency";
 import { paginate, problem, requireUser, sortRows, toCsv, type ListQuery } from "./server";
 
@@ -94,7 +93,7 @@ export function crud<R extends Row, F extends ListQuery, Item, Ent, In extends o
       check(input, null, cfg.base);
       const r = cfg.build(input, { id: nextId(cfg.idPrefix), user, now: nowIso() });
       cfg.setTable([...cfg.table(), r]);
-      audit({ actor: user.name, action: "CREATE", entity_type: cfg.entity, entity_id: r.id, summary: `Created ${cfg.label(r)}` });
+      audit({ actor: user, action: "CREATE", entity_type: cfg.entity, entity_id: r.id, summary: `Created ${cfg.label(r)}` });
       commit();
       return cfg.toEntity(r);
     },
@@ -127,7 +126,7 @@ export function crud<R extends Row, F extends ListQuery, Item, Ent, In extends o
         r.version += 1;
         r.updated_at = nowIso();
         r.updated_by = user.name;
-        audit({ actor: user.name, action: "UPDATE", entity_type: cfg.entity, entity_id: r.id, summary: `Updated ${cfg.label(r)}`, changes: diff });
+        audit({ actor: user, action: "UPDATE", entity_type: cfg.entity, entity_id: r.id, summary: `Updated ${cfg.label(r)}`, changes: diff });
         commit();
       }
       return cfg.toEntity(r);
@@ -142,7 +141,7 @@ export function crud<R extends Row, F extends ListQuery, Item, Ent, In extends o
       const reason = cfg.inUse?.(r);
       if (reason) throw problem(409, "in-use", "Still in use", reason, {}, instance);
       cfg.setTable(cfg.table().filter((x) => x.id !== id));
-      audit({ actor: user.name, action: "DELETE", entity_type: cfg.entity, entity_id: id, summary: `Deleted ${cfg.label(r)}` });
+      audit({ actor: user, action: "DELETE", entity_type: cfg.entity, entity_id: id, summary: `Deleted ${cfg.label(r)}` });
       commit();
     },
 
@@ -152,9 +151,9 @@ export function crud<R extends Row, F extends ListQuery, Item, Ent, In extends o
       // Same filters and sort as the list, not paged: the file holds every matching row.
       const rows = sortRows(cfg.filter(cfg.table(), f), f.sort, cfg.sorters, defaults(f), `${cfg.base}/export.csv`);
       const csv = toCsv(cfg.csv.header, rows.map(cfg.csv.row));
-      audit({ actor: user.name, action: "EXPORT", entity_type: cfg.entity, entity_id: null, summary: `Exported ${rows.length} rows (CSV)` });
+      audit({ actor: user, action: "EXPORT", entity_type: cfg.entity, entity_id: null, summary: `Exported ${rows.length} rows (CSV)` });
       commit();
-      return { filename: `${cfg.csv.name}_${BUSINESS_DATE}.csv`, csv, rows: rows.length };
+      return { filename: `${cfg.csv.name}_${businessDate()}.csv`, csv, rows: rows.length };
     },
   };
 }

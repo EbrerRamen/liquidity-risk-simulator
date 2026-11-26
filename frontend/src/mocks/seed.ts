@@ -13,8 +13,9 @@
  * projections; older history stays aggregate (see positions.ts).
  */
 import {
-  BUSINESS_DATE as T0,
+  BASE_CCY,
   CURRENCIES,
+  DEFAULT_MIN_BUFFER_BASE,
   FX,
   MATURITIES,
   NAMED_COUNTERPARTIES,
@@ -24,6 +25,7 @@ import {
   mulberry32,
   projectedFlows,
   seedFor,
+  SEED_REFERENCE_DATE as T0,
   type Ccy,
 } from "./dashboard-data";
 import type {
@@ -37,12 +39,14 @@ import type {
   FxRateRecord,
   LiquidAssetRecord,
   RatingHistoryRecord,
+  SettingsRecord,
+  UserRecord,
 } from "./db";
 import { DEFAULT_HAIRCUT, RATINGS, type AssetClass, type Band, type CashFlowCategory, type CounterpartyType, type DealType, type InterestFrequency, type Rating } from "./reference";
 import { buildSchedule, DEFAULT_DAY_COUNT, following, isBusinessDay, minorUnits, shiftDays } from "./schedule";
 
 /** Bump when the seed or record shapes change, so stale session copies are discarded. */
-export const SCHEMA = 2;
+export const SCHEMA = 3;
 export const RECORD_WINDOW_DAYS = 30; // settled history kept as records: (T0-30, T0]
 export const PROJECTION_DAYS = 90;
 
@@ -426,6 +430,49 @@ function dealSpecs(rnd: () => number, cps: CounterpartyRecord[], aggProj: Record
 
 /* ======================= main ======================= */
 
+/**
+ * Demo users (§6.1). The real seed takes their passwords from environment
+ * variables; here a null hash means the demo password in ./auth.ts.
+ */
+export const SEED_USERS: ReadonlyArray<Pick<UserRecord, "id" | "full_name" | "email" | "role" | "is_active">> = [
+  { id: "u-admin", full_name: "Alex Admin", email: "admin@lrs.local", role: "ADMIN", is_active: true },
+  { id: "u-analyst", full_name: "Riley Analyst", email: "analyst@lrs.local", role: "RISK_ANALYST", is_active: true },
+  { id: "u-viewer", full_name: "Sam Viewer", email: "viewer@lrs.local", role: "VIEWER", is_active: true },
+  { id: "u-ellis", full_name: "Jordan Ellis", email: "jordan.ellis@lrs.local", role: "RISK_ANALYST", is_active: true },
+  { id: "u-price", full_name: "Morgan Price", email: "morgan.price@lrs.local", role: "VIEWER", is_active: true },
+  { id: "u-former", full_name: "Former Analyst", email: "former@lrs.local", role: "RISK_ANALYST", is_active: false },
+];
+
+/** Last sign-in, hours before the seed was taken (null: never signed in). */
+const LAST_LOGIN_HOURS: Record<string, number | null> = { "u-admin": 20, "u-analyst": 26, "u-viewer": 70, "u-ellis": 150, "u-price": null, "u-former": 3400 };
+
+function seedUsers(): UserRecord[] {
+  const seededAt = Date.parse(T0 + "T18:00:00Z");
+  return SEED_USERS.map((u, i) => {
+    const hours = LAST_LOGIN_HOURS[u.id];
+    return {
+      ...u,
+      password_hash: null,
+      failed_login_count: 0,
+      locked_until: null,
+      last_login_at: hours == null ? null : new Date(seededAt - hours * 3_600_000).toISOString(),
+      ...meta(i * 3),
+    };
+  });
+}
+
+function seedSettings(): SettingsRecord {
+  return {
+    business_date: T0,
+    base_currency: BASE_CCY,
+    min_liquidity_buffer: DEFAULT_MIN_BUFFER_BASE.toFixed(2),
+    include_facilities_default: false,
+    version: 1,
+    updated_at: T0 + "T18:00:00.000Z",
+    updated_by: null,
+  };
+}
+
 export function seedDb(): Db {
   const rnd = mulberry32(seedFor("db-market"));
   const { counterparties, ratingHistory, inactiveReferenced } = seedCounterparties();
@@ -718,6 +765,8 @@ export function seedDb(): Db {
 
   return {
     schema: SCHEMA,
+    settings: seedSettings(),
+    users: seedUsers(),
     counterparties,
     ratingHistory,
     deals,

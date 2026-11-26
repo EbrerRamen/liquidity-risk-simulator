@@ -6,7 +6,10 @@
  * Tables mirror TECHNICAL_PLAN §3.2. The seed (./seed.ts) is built so that the
  * dashboard's figures come out of these records via the §5 formulas.
  */
+import type { AuditAction } from "@/api/auditLog";
 import type { Audited } from "@/api/types";
+import type { Role, SessionUser } from "@/app/session";
+import { mockRequestId } from "./latency";
 import type {
   AccountType,
   AssetClass,
@@ -149,19 +152,49 @@ export interface FxRateRecord {
   created_by: string | null;
 }
 
+export interface UserRecord extends Audited {
+  id: string;
+  email: string; // stored lower-case: UNIQUE(lower(email)) (§3.4)
+  full_name: string;
+  role: Role;
+  is_active: boolean;
+  /** Stand-in for the argon2id hash: SHA-256 hex, or null for a seeded account on the demo password. */
+  password_hash: string | null;
+  failed_login_count: number;
+  locked_until: string | null;
+  last_login_at: string | null;
+}
+
+/** The single app_settings row (§3.3, CHECK id = 1). */
+export interface SettingsRecord {
+  business_date: string;
+  base_currency: string;
+  min_liquidity_buffer: string; // base currency
+  include_facilities_default: boolean;
+  version: number;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/** Append-only audit trail (§3.3). `summary` is a display line the mock writes alongside the diff. */
 export interface AuditRecord {
   id: number;
-  at: string;
-  actor: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "EXPORT" | "LOGIN" | "CANCEL" | "SETTLE" | "FAIL";
+  occurred_at: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  action: AuditAction;
   entity_type: string;
   entity_id: string | null;
   summary: string;
   changes?: Record<string, [unknown, unknown]>;
+  request_id: string;
+  ip_address: string;
 }
 
 export interface Db {
   schema: number;
+  settings: SettingsRecord;
+  users: UserRecord[];
   counterparties: CounterpartyRecord[];
   ratingHistory: RatingHistoryRecord[];
   deals: DealRecord[];
@@ -219,14 +252,29 @@ export function nextId(prefix: string): string {
   return `${prefix}-${d.seq}`;
 }
 
-export function audit(entry: Omit<AuditRecord, "id" | "at">): void {
+/**
+ * Record an audit entry, newest first. Services write it in the same
+ * transaction as the change (§1.4); here, before the same commit().
+ */
+export function audit({ actor, ...entry }: { actor: SessionUser | null } & Pick<AuditRecord, "action" | "entity_type" | "entity_id" | "summary" | "changes">): void {
   const d = db();
-  d.audit.unshift({ ...entry, id: d.audit.length + 1, at: new Date().toISOString() });
+  d.audit.unshift({
+    ...entry,
+    id: (d.audit[0]?.id ?? 0) + 1,
+    occurred_at: nowIso(),
+    actor_user_id: actor?.id ?? null,
+    actor_name: actor?.name ?? null,
+    request_id: mockRequestId(),
+    ip_address: "127.0.0.1",
+  });
 }
+
+/** The simulation business date T0 (app_settings, A8). Read it on every call: an admin can move it. */
+export const businessDate = (): string => db().settings.business_date;
 
 export const nowIso = () => new Date().toISOString();
 
-type TableName = "counterparties" | "deals" | "cashFlows" | "cashAccounts" | "fundingSources" | "liquidAssets" | "exposures";
+type TableName = "counterparties" | "deals" | "cashFlows" | "cashAccounts" | "fundingSources" | "liquidAssets" | "exposures" | "users";
 
 // Development hooks for automated UI checks (never shipped in production builds).
 if (import.meta.env.DEV && typeof window !== "undefined") {

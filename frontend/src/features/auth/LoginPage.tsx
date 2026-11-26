@@ -8,7 +8,7 @@ import { safeNext, SessionSplash } from "@/auth/RequireAuth";
 import { BrandMark } from "@/components/layout/Brand";
 import { Alert, Badge, Button, Field, Input } from "@/components/ui";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/mocks/auth";
-import { MOCK_SYSTEM_INFO } from "@/mocks/session";
+import { MOCK_APP_VERSION } from "@/mocks/system";
 
 /** Until the backend exists, sign-in is mocked and the demo accounts are listed. */
 const MOCK_AUTH = true;
@@ -356,7 +356,7 @@ export function LoginPage() {
         </div>
 
         <footer className="flex items-center justify-between px-6 pb-5 text-2xs text-fg-faint">
-          <span className="num">v{MOCK_SYSTEM_INFO.version}</span>
+          <span className="num">v{MOCK_APP_VERSION}</span>
           <span className="lg:hidden">Simulation metrics, not regulatory ratios</span>
         </footer>
       </main>

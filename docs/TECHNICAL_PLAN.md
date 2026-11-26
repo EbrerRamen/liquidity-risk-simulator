@@ -698,10 +698,10 @@ Auth hardening: argon2id hashing, minimum password length 12, account lockout af
 | POST | `/auth/refresh` | cookie | Rotate refresh token, issue new access token |
 | POST | `/auth/logout` | any | Revoke refresh token |
 | GET | `/auth/me` | any | Current user and role |
-| GET/POST | `/users` · PATCH `/users/{id}` | ADMIN | User management (role, activation) |
+| GET/POST | `/users` · PATCH `/users/{id}` | ADMIN | User management (role, activation). Admins can't change their own role or deactivate themselves, and the last active admin can't lose the role (409). |
 | GET | `/health` · `/health/ready` | public | Liveness · readiness (DB check) |
 | GET | `/system/info` | any | Version, business date, base currency, synthetic flag, LLM availability |
-| PATCH | `/system/settings` | ADMIN | Business date, minimum buffer, facilities default |
+| GET/PATCH | `/system/settings` | ADMIN | Business date, minimum buffer, facilities default. The business date must be a business day and can't move before the latest recorded activity (settlement, deal booking, FX rate, rating change). |
 
 **Reference and master data.** Each resource R in `counterparties`, `deals`, `cash-flows`, `funding-sources`, `liquid-assets`, `cash-accounts`, `currency-exposures` exposes `GET /R` (list, filter, search, sort, paginate), `POST /R`, `GET /R/{id}`, `PATCH /R/{id}`, `DELETE /R/{id}` (ADMIN, rejected with 409 if referenced) and `GET /R/export.csv` (same filters as list). Additional endpoints:
 

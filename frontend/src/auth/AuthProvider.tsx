@@ -2,13 +2,14 @@
  * Session lifecycle (TECHNICAL_PLAN D9, C12):
  *  - the access token lives only in memory (this provider), never in storage;
  *  - on load, POST /auth/refresh uses the httpOnly refresh cookie to restore the session;
- *  - the access token is refreshed shortly before it expires.
+ *  - the access token is refreshed shortly before it expires;
+ *  - GET /system/info supplies the business date and base currency for the session.
  * The mock* calls are swapped for the typed API client once the backend exists.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { systemApi } from "@/api/system";
 import type { SessionUser, SystemInfo } from "@/app/session";
-import { mockHasRefreshCookie, mockLogin, mockLogout, mockRefresh, type TokenResponse } from "@/mocks/auth";
-import { MOCK_SYSTEM_INFO } from "@/mocks/session";
+import { mockHasRefreshCookie, mockLogin, mockLogout, mockMe, mockRefresh, type TokenResponse } from "@/mocks/auth";
 
 export type AuthStatus = "restoring" | "signedOut" | "signedIn";
 
@@ -22,6 +23,8 @@ interface AuthValue {
   signOutReason: SignOutReason;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-read the user and system info, e.g. after an admin changes the business date. */
+  reload: () => Promise<void>;
   /** For the API client: current bearer token, or null. */
   getAccessToken: () => string | null;
 }
@@ -60,20 +63,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("signedOut");
   }, []);
 
+  /** Take a new token, load system info, and schedule the next refresh. */
   const accept = useCallback(
-    (res: TokenResponse) => {
-      token.current = res.access_token;
-      setUser(res.user);
-      setSystem(MOCK_SYSTEM_INFO); // GET /system/info
-      setSignOutReason(null);
-      setStatus("signedIn");
-      clearTimeout(timer.current);
-      timer.current = setTimeout(
-        () => {
-          refreshOnce().then(accept, () => clear("expired"));
-        },
-        Math.max(5, res.expires_in - REFRESH_MARGIN_S) * 1000,
-      );
+    (res: TokenResponse): Promise<void> => {
+      const start = async (r: TokenResponse): Promise<void> => {
+        token.current = r.access_token;
+        const info = await systemApi.info();
+        setUser(r.user);
+        setSystem(info);
+        setSignOutReason(null);
+        setStatus("signedIn");
+        clearTimeout(timer.current);
+        timer.current = setTimeout(
+          () => {
+            refreshOnce()
+              .then(start)
+              .catch(() => clear("expired"));
+          },
+          Math.max(5, r.expires_in - REFRESH_MARGIN_S) * 1000,
+        );
+      };
+      return start(res);
     },
     [clear],
   );
@@ -82,10 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const hadSession = mockHasRefreshCookie();
-    refreshOnce().then(
-      (res) => !cancelled && accept(res),
-      () => !cancelled && clear(hadSession ? "expired" : null),
-    );
+    refreshOnce()
+      .then((res) => (cancelled ? undefined : accept(res)))
+      .catch(() => {
+        if (!cancelled) clear(hadSession ? "expired" : null);
+      });
     return () => {
       cancelled = true;
       clearTimeout(timer.current);
@@ -93,8 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accept, clear]);
 
   const login = useCallback(async (email: string, password: string) => {
-    accept(await mockLogin(email, password));
+    await accept(await mockLogin(email, password));
   }, [accept]);
+
+  const reload = useCallback(async () => {
+    const [me, info] = await Promise.all([mockMe(), systemApi.info()]);
+    setUser(me);
+    setSystem(info);
+  }, []);
 
   const logout = useCallback(async () => {
     await mockLogout();
@@ -102,8 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clear]);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, user, system, signOutReason, login, logout, getAccessToken: () => token.current }),
-    [status, user, system, signOutReason, login, logout],
+    () => ({ status, user, system, signOutReason, login, logout, reload, getAccessToken: () => token.current }),
+    [status, user, system, signOutReason, login, logout, reload],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

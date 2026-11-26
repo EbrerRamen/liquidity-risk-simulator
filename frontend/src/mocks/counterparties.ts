@@ -14,8 +14,8 @@ import type {
   RatingHistoryItem,
 } from "@/api/counterparties";
 import type { Page } from "@/api/types";
-import { BASE_CCY, BUSINESS_DATE } from "./dashboard-data";
-import { audit, commit, db, nextId, nowIso, type CounterpartyRecord } from "./db";
+import { BASE_CCY } from "./dashboard-data";
+import { audit, businessDate, commit, db, nextId, nowIso, type CounterpartyRecord } from "./db";
 import { latency } from "./latency";
 import { BANDS, COUNTERPARTY_TYPES, COUNTRIES, RATINGS, type Band } from "./reference";
 import { csvList, paginate, problem, requireUser, sortRows, toCsv } from "./server";
@@ -139,7 +139,7 @@ export async function getCounterpartySummary(id: string): Promise<CounterpartySu
   const c = find(id);
   return {
     counterparty_id: c.id,
-    as_of: BUSINESS_DATE,
+    as_of: businessDate(),
     exposure: { funding: money(c.funding), credit: money(c.credit), currency: BASE_CCY },
     open_deals: (refCounts().get(c.id) ?? NO_REFS).open_deals,
     cash_flows: (refCounts().get(c.id) ?? NO_REFS).cash_flows,
@@ -192,8 +192,8 @@ function assertUniqueName(name: string, exceptId: string | null, instance: strin
 /** One rating per counterparty per effective date (unique constraint): same-day changes replace. */
 function recordRating(id: string, rating: CounterpartyRecord["credit_rating"]): void {
   const d = db();
-  d.ratingHistory = d.ratingHistory.filter((r) => !(r.counterparty_id === id && r.effective_date === BUSINESS_DATE));
-  d.ratingHistory.push({ id: d.ratingHistory.length + 1, counterparty_id: id, credit_rating: rating, effective_date: BUSINESS_DATE });
+  d.ratingHistory = d.ratingHistory.filter((r) => !(r.counterparty_id === id && r.effective_date === businessDate()));
+  d.ratingHistory.push({ id: d.ratingHistory.length + 1, counterparty_id: id, credit_rating: rating, effective_date: businessDate() });
 }
 
 export async function createCounterparty(input: CounterpartyInput): Promise<Counterparty> {
@@ -225,7 +225,7 @@ export async function createCounterparty(input: CounterpartyInput): Promise<Coun
   };
   db().counterparties.push(rec);
   recordRating(rec.id, rec.credit_rating);
-  audit({ actor: user.name, action: "CREATE", entity_type: "counterparty", entity_id: rec.id, summary: `Created ${rec.name}` });
+  audit({ actor: user, action: "CREATE", entity_type: "counterparty", entity_id: rec.id, summary: `Created ${rec.name}` });
   commit();
   return toEntity(rec);
 }
@@ -256,7 +256,7 @@ export async function updateCounterparty(id: string, patch: CounterpartyPatch): 
     c.updated_at = nowIso();
     c.updated_by = user.name;
     if (changes.credit_rating) recordRating(c.id, c.credit_rating);
-    audit({ actor: user.name, action: "UPDATE", entity_type: "counterparty", entity_id: c.id, summary: `Updated ${c.name}`, changes });
+    audit({ actor: user, action: "UPDATE", entity_type: "counterparty", entity_id: c.id, summary: `Updated ${c.name}`, changes });
     commit();
   }
   return toEntity(c);
@@ -276,7 +276,7 @@ export async function deleteCounterparty(id: string, version: number): Promise<v
   const d = db();
   d.counterparties = d.counterparties.filter((x) => x.id !== id);
   d.ratingHistory = d.ratingHistory.filter((r) => r.counterparty_id !== id);
-  audit({ actor: user.name, action: "DELETE", entity_type: "counterparty", entity_id: id, summary: `Deleted ${c.name}` });
+  audit({ actor: user, action: "DELETE", entity_type: "counterparty", entity_id: id, summary: `Deleted ${c.name}` });
   commit();
 }
 
@@ -290,7 +290,7 @@ export async function exportCounterpartiesCsv(f: CounterpartyFilters): Promise<{
     ["id", "name", "counterparty_type", "country_code", "credit_rating", "risk_classification", "model_band", "model_score", "funding_base", "credit_base", "base_currency", "open_deals", "is_active", "updated_at"],
     rows.map((c) => [c.id, c.name, c.counterparty_type, c.country_code, c.credit_rating, c.risk_classification, c.model_band, c.model_score, money(c.funding), money(c.credit), BASE_CCY, (sortRefs.get(c.id) ?? NO_REFS).open_deals, c.is_active, c.updated_at]),
   );
-  audit({ actor: user.name, action: "EXPORT", entity_type: "counterparty", entity_id: null, summary: `Exported ${rows.length} counterparties (CSV)` });
+  audit({ actor: user, action: "EXPORT", entity_type: "counterparty", entity_id: null, summary: `Exported ${rows.length} counterparties (CSV)` });
   commit();
-  return { filename: `counterparties_${BUSINESS_DATE}.csv`, csv, rows: rows.length };
+  return { filename: `counterparties_${businessDate()}.csv`, csv, rows: rows.length };
 }

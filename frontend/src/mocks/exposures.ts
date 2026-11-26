@@ -7,7 +7,7 @@ import type { Ccy } from "./dashboard-data";
 import { crud, csvIn, decimalPlaces, isDec, isIsoDate, type FieldError } from "./crud";
 import { db, type ExposureRecord } from "./db";
 import { latency } from "./latency";
-import { BASE_CCY, BUSINESS_DATE, cpName, money } from "./lookup";
+import { BASE_CCY, businessDate, cpName, money } from "./lookup";
 import { ratesAt } from "./positions";
 import { CURRENCY_LIST, EXPOSURE_TYPES, POSITIONS } from "./reference";
 import { requireUser } from "./server";
@@ -78,7 +78,7 @@ const api = crud<ExposureRecord, ExposureFilters, ExposureItem, Exposure, Exposu
     else if (decimalPlaces(i.exposure_amount) > dp) e.push({ field: "exposure_amount", message: `use at most ${dp} decimal places for ${i.currency_code}` });
     const needsDate = i.exposure_type === "FX_SPOT" || i.exposure_type === "FX_FORWARD";
     if (needsDate && !i.value_date) e.push({ field: "value_date", message: "spot and forward positions need a value date" });
-    if (i.value_date && (!isIsoDate(i.value_date) || i.value_date <= BUSINESS_DATE)) e.push({ field: "value_date", message: "must be after the business date" });
+    if (i.value_date && (!isIsoDate(i.value_date) || i.value_date <= businessDate())) e.push({ field: "value_date", message: "must be after the business date" });
     if (!i.description || i.description.length < 3) e.push({ field: "description", message: "describe the position (at least 3 characters)" });
     if (i.description && i.description.length > 200) e.push({ field: "description", message: "keep it under 200 characters" });
     if (i.counterparty_id && !db().counterparties.some((c) => c.id === i.counterparty_id)) e.push({ field: "counterparty_id", message: "unknown counterparty" });
@@ -124,7 +124,7 @@ async function summary(f: ExposureFilters): Promise<ExposureSummary> {
     .sort((a, b) => Math.abs(Number(b.net_base)) - Math.abs(Number(a.net_base)));
   const gross = rows.reduce((s, r) => s + Math.abs(signedBase(r)), 0);
   const net = rows.reduce((s, r) => s + signedBase(r), 0);
-  return { base_currency: BASE_CCY, as_of: BUSINESS_DATE, items, gross_base: money(gross, BASE_CCY), net_base: money(net, BASE_CCY) };
+  return { base_currency: BASE_CCY, as_of: businessDate(), items, gross_base: money(gross, BASE_CCY), net_base: money(net, BASE_CCY) };
 }
 
 export const exposuresMock = { ...api, summary };

@@ -42,11 +42,13 @@ interface SessionValue {
   system: SystemInfo;
   can: (required: Role) => boolean;
   logout: () => Promise<void>;
+  /** Re-read the user and system info (business date) after a change to either. */
+  reload: () => Promise<void>;
 }
 
 /** The signed-in session. Only valid inside <RequireAuth>, which guarantees a user. */
 export function useSession(): SessionValue {
-  const { user, system, logout } = useAuth();
+  const { user, system, logout, reload } = useAuth();
   if (!user || !system) throw new Error("useSession used outside a signed-in area");
-  return { user, system, logout, can: (required) => hasRole(user.role, required) };
+  return { user, system, logout, reload, can: (required) => hasRole(user.role, required) };
 }

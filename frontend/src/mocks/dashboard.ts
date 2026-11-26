@@ -3,8 +3,8 @@
  * data in ./dashboard-data. Formulas follow §5: L0 (§5.5), AL_t (§5.6),
  * FR / survival (§5.8), SLCI (§5.9), HHI (§5.10). Money leaves as decimal strings.
  */
-import { ACTIVE_SCENARIOS, ANOMALIES_BY_TYPE, BASE_CCY, BUSINESS_DATE, CURRENCIES, MIN_BUFFER_BASE, PREVIOUS, type Band, type Ccy, type DayFlows } from "./dashboard-data";
-import { db, type DealRecord } from "./db";
+import { ACTIVE_SCENARIOS, ANOMALIES_BY_TYPE, BASE_CCY, CURRENCIES, PREVIOUS, type Band, type Ccy, type DayFlows } from "./dashboard-data";
+import { businessDate, db, type DealRecord } from "./db";
 import { latency } from "./latency";
 import { cashBalance, maturingDeals, overdueInflows, projectedDaily, ratesAt, securitiesValue, settledDaily } from "./positions";
 import { DEAL_TYPE_LABEL } from "./reference";
@@ -161,13 +161,14 @@ const ratio = (n: number, dp = 6): string => n.toFixed(dp);
 /** Reporting currency for a filter: base for ALL, else the currency itself. */
 const reportingCcy = (f: CurrencyFilter) => (f === "ALL" ? BASE_CCY : f);
 
-/** S_c(T0) from the live FX table, cached until the table changes. */
+/** S_c(T0) from the live FX table, cached until the table or the business date changes. */
 let fxCache: { key: string; rates: Record<Ccy, number> } | null = null;
 function fx(): Record<Ccy, number> {
   const rows = db().fxRates;
   const last = rows[rows.length - 1];
-  const key = `${rows.length}:${last?.id}:${last?.rate_to_base}`;
-  if (!fxCache || fxCache.key !== key) fxCache = { key, rates: ratesAt(BUSINESS_DATE) };
+  const t0 = businessDate();
+  const key = `${t0}:${rows.length}:${last?.id}:${last?.rate_to_base}`;
+  if (!fxCache || fxCache.key !== key) fxCache = { key, rates: ratesAt(t0) };
   return fxCache.rates;
 }
 
@@ -210,7 +211,8 @@ function path(filter: CurrencyFilter, horizon: number) {
   const flows = combine(filter, projectedDaily).slice(0, horizon);
   let al = L0;
   let min = { date: flows[0]!.date, value: Infinity };
-  const buffer = filter === "ALL" ? MIN_BUFFER_BASE : null;
+  // B_min (§5.8) is set on the consolidated position, in the base currency.
+  const buffer = filter === "ALL" ? Number(db().settings.min_liquidity_buffer) : null;
   let breach: string | null = null;
   const series = flows.map((f) => {
     al += f.inflows - f.outflows;
@@ -275,7 +277,7 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
   const prevAL = f.currency === "ALL" ? PREVIOUS.availableLiquidityBase : open.total * 0.988;
 
   return {
-    as_of: BUSINESS_DATE,
+    as_of: businessDate(),
     horizon_days: f.horizon,
     currency: ccy,
     consolidated: f.currency === "ALL",
@@ -297,7 +299,7 @@ export async function getKpis(f: DashboardFilters): Promise<KpiResponse> {
         ? null
         : {
             min_buffer: money(p.buffer, ccy),
-            survival_days: p.breach ? daysBetween(BUSINESS_DATE, p.breach) - 1 : null,
+            survival_days: p.breach ? daysBetween(businessDate(), p.breach) - 1 : null,
             first_breach_date: p.breach,
             min_available_liquidity: money(p.min.value, ccy),
             min_date: p.min.date,
@@ -402,7 +404,7 @@ export async function getMaturitySchedule(f: DashboardFilters): Promise<Maturity
     currency: ccy,
     buckets: LADDER.filter((b) => b.from <= f.horizon).map((b) => {
       const ms = maturingDeals(f.horizon, ccyOf(f.currency)).filter((m) => {
-        const day = daysBetween(BUSINESS_DATE, m.maturity_date);
+        const day = daysBetween(businessDate(), m.maturity_date);
         return day >= b.from && day <= Math.min(b.to, f.horizon);
       });
       const lend = ms.filter((m) => m.direction === "LEND");
@@ -516,7 +518,7 @@ export async function getFindings(f: DashboardFilters): Promise<Finding[]> {
       id: "breach",
       severity: "critical",
       title: `Buffer breach on ${shortDate(p.breach)}`,
-      detail: `Available liquidity falls below the ${fmt(p.buffer)} minimum buffer on day ${daysBetween(BUSINESS_DATE, p.breach)}, reaching ${fmt(p.min.value)} on ${shortDate(p.min.date)}. Funding requirement ${fmt(p.buffer - p.min.value)}.`,
+      detail: `Available liquidity falls below the ${fmt(p.buffer)} minimum buffer on day ${daysBetween(businessDate(), p.breach)}, reaching ${fmt(p.min.value)} on ${shortDate(p.min.date)}. Funding requirement ${fmt(p.buffer - p.min.value)}.`,
       link: { label: "Liquidity position", to: `/liquidity/position?horizon=${f.horizon}` },
     });
   }

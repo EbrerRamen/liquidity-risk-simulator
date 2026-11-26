@@ -7,6 +7,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { NotFoundPage, PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
 import { NAV } from "./navigation";
 import { RequireRole } from "./RequireRole";
+import { RouteError } from "./RouteError";
 
 /** Load a page's code only when it is first opened (keeps the initial bundle small). */
 function page(load: () => Promise<ComponentType>) {
@@ -35,6 +36,9 @@ const SCREENS: Record<string, ReactNode> = {
   "/data/cash-accounts": page(() => import("@/features/cash-accounts/CashAccountsPage").then((m) => m.CashAccountsPage)),
   "/data/currency-exposures": page(() => import("@/features/exposures/ExposuresPage").then((m) => m.ExposuresPage)),
   "/data/fx-rates": page(() => import("@/features/fx-rates/FxRatesPage").then((m) => m.FxRatesPage)),
+  "/admin/users": page(() => import("@/features/admin/UsersPage").then((m) => m.UsersPage)),
+  "/admin/audit": page(() => import("@/features/admin/AuditLogPage").then((m) => m.AuditLogPage)),
+  "/admin/settings": page(() => import("@/features/admin/SettingsPage").then((m) => m.SettingsPage)),
   "/design-system": page(() => import("@/features/design-system/DesignSystemPage").then((m) => m.DesignSystemPage)),
 };
 
@@ -50,13 +54,16 @@ const navRoutes: RouteObject[] = NAV.filter((g) => !g.devOnly || import.meta.env
 );
 
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
+  { path: "/login", element: <LoginPage />, errorElement: <RouteError fullPage /> },
   {
     element: (
       <RequireAuth>
         <AppShell />
       </RequireAuth>
     ),
-    children: [...navRoutes, { path: "*", element: <NotFoundPage /> }],
+    errorElement: <RouteError fullPage />,
+    // A pathless layer whose boundary renders inside the shell, so a failing
+    // page leaves the sidebar and top bar working.
+    children: [{ errorElement: <RouteError />, children: [...navRoutes, { path: "*", element: <NotFoundPage /> }] }],
   },
 ]);

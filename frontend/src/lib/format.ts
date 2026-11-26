@@ -143,3 +143,19 @@ export function formatDateShort(iso: string): string {
 export function formatWeekday(iso: string): string {
   return WEEKDAY_FMT.format(new Date(iso + "T00:00:00Z"));
 }
+
+const DATETIME_FMT = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const TIME_FMT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+/**
+ * ISO timestamp → "12 Nov 2026, 14:05" in the viewer's time zone. For real
+ * events (sign-ins, audit entries), unlike business dates, which are calendar dates.
+ */
+export function formatDateTime(iso: string): string {
+  return DATETIME_FMT.format(new Date(iso));
+}
+
+/** ISO timestamp → "14:05:32" in the viewer's time zone. */
+export function formatTime(iso: string): string {
+  return TIME_FMT.format(new Date(iso));
+}

@@ -3,7 +3,7 @@ import type { LiquidAsset, LiquidAssetFilters, LiquidAssetInput, LiquidAssetItem
 import { crud, csvIn, decimalPlaces, isDec, isIsoDate, type FieldError } from "./crud";
 import { db, type LiquidAssetRecord } from "./db";
 import { latency } from "./latency";
-import { BASE_CCY, BUSINESS_DATE, cpName, money, toBase } from "./lookup";
+import { BASE_CCY, businessDate, cpName, money, toBase } from "./lookup";
 import { ASSET_CLASSES, CURRENCY_LIST } from "./reference";
 import { requireUser } from "./server";
 
@@ -77,7 +77,7 @@ const api = crud<LiquidAssetRecord, LiquidAssetFilters, LiquidAssetItem, LiquidA
     else if (decimalPlaces(i.market_value) > dp) e.push({ field: "market_value", message: `use at most ${dp} decimal places for ${i.currency_code}` });
     if (!isDec(i.haircut) || Number(i.haircut) < 0 || Number(i.haircut) >= 1) e.push({ field: "haircut", message: "must be at least 0% and below 100%" });
     else if (decimalPlaces(i.haircut) > 6) e.push({ field: "haircut", message: "use at most 4 decimal places in percent" });
-    if (!isIsoDate(i.maturity_date) || i.maturity_date <= BUSINESS_DATE) e.push({ field: "maturity_date", message: "must be after the business date" });
+    if (!isIsoDate(i.maturity_date) || i.maturity_date <= businessDate()) e.push({ field: "maturity_date", message: "must be after the business date" });
     if (i.issuer_counterparty_id && !db().counterparties.some((c) => c.id === i.issuer_counterparty_id)) e.push({ field: "issuer_counterparty_id", message: "unknown counterparty" });
     return e;
   },

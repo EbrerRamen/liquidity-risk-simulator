@@ -3,12 +3,12 @@ import type { CashAccount, CashAccountFilters, CashAccountInput, CashAccountItem
 import type { Ccy } from "./dashboard-data";
 import { crud, csvIn, decimalPlaces, isDec, isIsoDate, type FieldError } from "./crud";
 import { db, type CashAccountRecord } from "./db";
-import { BUSINESS_DATE, fmtDate, money, toBase } from "./lookup";
+import { businessDate, fmtDate, money, toBase } from "./lookup";
 import { cashBalance } from "./positions";
 import { ACCOUNT_TYPES, CURRENCY_LIST } from "./reference";
 
 function settledSince(r: CashAccountRecord) {
-  return db().cashFlows.filter((f) => f.currency_code === r.currency_code && f.status === "SETTLED" && f.actual_date! > r.opening_date && f.actual_date! <= BUSINESS_DATE).length;
+  return db().cashFlows.filter((f) => f.currency_code === r.currency_code && f.status === "SETTLED" && f.actual_date! > r.opening_date && f.actual_date! <= businessDate()).length;
 }
 
 function toItem(r: CashAccountRecord): CashAccountItem {
@@ -62,7 +62,7 @@ export const cashAccountsMock = crud<CashAccountRecord, CashAccountFilters, Cash
     const dp = ccy === "JPY" ? 0 : 2;
     if (!isDec(i.opening_balance)) e.push({ field: "opening_balance", message: "enter the balance (negative for an overdraft)" });
     else if (decimalPlaces(i.opening_balance) > dp) e.push({ field: "opening_balance", message: `use at most ${dp} decimal places for ${ccy}` });
-    if (!isIsoDate(i.opening_date) || i.opening_date > BUSINESS_DATE) e.push({ field: "opening_date", message: `must be on or before the business date (${fmtDate(BUSINESS_DATE)})` });
+    if (!isIsoDate(i.opening_date) || i.opening_date > businessDate()) e.push({ field: "opening_date", message: `must be on or before the business date (${fmtDate(businessDate())})` });
     return e;
   },
   duplicates: (i, existing) =>

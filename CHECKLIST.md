@@ -10,7 +10,7 @@ The frontend is being built ahead of the backend. Every screen reads from an in-
 
 No Phase 3 milestone is marked done, because each exit criterion in §7 needs the real API and seeded data. The sub-items under each `[~]` milestone show which parts are built.
 
-**Next up:** the Admin screens (Users and Settings for M3.2, Audit Log for M3.3), which finish the Phase 3 screens. Then Phase 2, before any Phase 4 screens, so that the §5 engines aren't written twice (once in the TypeScript mocks and again in Python).
+**Next up:** Phase 2. Every Phase 3 screen now exists against the mock API, so the backend comes next, before any Phase 4 screens, so that the §5 engines aren't written twice (once in the TypeScript mocks and again in Python).
 
 ## Phase 1: Planning
 - [x] Requirements analysis and ambiguity resolutions (§0.3)
@@ -41,14 +41,14 @@ No Phase 3 milestone is marked done, because each exit criterion in §7 needs th
   - [x] Sign-in page, app shell, sidebar, top bar with breadcrumb, role-aware navigation and route guards
   - [x] Session restored on reload, access token refreshed before expiry (against the mock `/auth/refresh`)
   - [x] Edit actions hidden from viewers
-  - [ ] Error boundary (routes have no `errorElement` yet)
-  - [ ] Users screen (`/admin/users`)
-  - [ ] Settings screen (`/admin/settings`): simulation business date, minimum liquidity buffer
+  - [x] Error boundary: a failing page is replaced inside the shell; a full-page fallback covers the shell itself
+  - [x] Users screen (`/admin/users`): create, edit name and role, deactivate and reactivate; admins can't demote or deactivate themselves or the last admin
+  - [x] Settings screen (`/admin/settings`): simulation business date (moves every mock calculation), minimum liquidity buffer, facilities default
   - [ ] Working against the real auth API
 - [~] M3.3 Data management screens (tables, filters, forms, drawers, CSV export)
   - [x] Shared list, detail and editor components: paging, sorting, filters, search, detail drawers, zod-validated forms, CSV export
   - [x] Counterparties, MM deals (with schedule preview), cash flows, funding sources, liquid assets, cash accounts, currency exposures, FX rates
-  - [ ] Audit Log screen (`/admin/audit`)
+  - [x] Audit Log screen (`/admin/audit`): cursor-paged, filters by user, action, record type and date, field-level diffs; sign-ins are audited
   - [ ] Full CRUD against the real API and seeded data (exit criterion)
 - [~] M3.4 Dashboard v1 (SQL aggregates, date-range filter, drill-down)
   - [x] KPIs, cash history, projection, flows, maturity, concentration and risk charts, maturities table, findings

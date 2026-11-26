@@ -3,7 +3,7 @@ import type { FundingFilters, FundingInput, FundingListItem, FundingSource, Fund
 import { crud, csvIn, decimalPlaces, isDec, isIsoDate, type FieldError } from "./crud";
 import { db, type FundingSourceRecord } from "./db";
 import { latency } from "./latency";
-import { BASE_CCY, BUSINESS_DATE, cpName, money, toBase } from "./lookup";
+import { BASE_CCY, businessDate, cpName, money, toBase } from "./lookup";
 import { CURRENCY_LIST, FUNDING_TYPES, isDepositPool, type FundingType } from "./reference";
 import { requireUser } from "./server";
 
@@ -93,7 +93,7 @@ const api = crud<FundingSourceRecord, FundingFilters, FundingListItem, FundingSo
       if (LINE_TYPES.includes(i.funding_type) && !i.counterparty_id) e.push({ field: "counterparty_id", message: "choose the provider of this line" });
     }
     if (i.counterparty_id && !db().counterparties.some((c) => c.id === i.counterparty_id)) e.push({ field: "counterparty_id", message: "unknown counterparty" });
-    if (i.maturity_date && (!isIsoDate(i.maturity_date) || i.maturity_date <= BUSINESS_DATE)) e.push({ field: "maturity_date", message: "must be after the business date" });
+    if (i.maturity_date && (!isIsoDate(i.maturity_date) || i.maturity_date <= businessDate())) e.push({ field: "maturity_date", message: "must be after the business date" });
     return e;
   },
   duplicates: (i, existing) =>

@@ -9,13 +9,13 @@ import type { Ccy } from "./dashboard-data";
 import { crud, csvIn, decimalPlaces, inRange, isDec, isIsoDate, type FieldError } from "./crud";
 import { audit, commit, db, nowIso, SEEDED_AT, type CashFlowRecord } from "./db";
 import { latency } from "./latency";
-import { BASE_CCY, BUSINESS_DATE, cpName, fmtDate, money } from "./lookup";
+import { BASE_CCY, businessDate, cpName, fmtDate, money } from "./lookup";
 import { ratesAt } from "./positions";
 import { CF_CATEGORIES, CURRENCY_LIST, MANUAL_CF_CATEGORIES } from "./reference";
 import { problem, requireUser } from "./server";
 
 const BASE = "/api/v1/cash-flows";
-const isOverdue = (f: CashFlowRecord) => f.status === "PROJECTED" && f.expected_date <= BUSINESS_DATE;
+const isOverdue = (f: CashFlowRecord) => f.status === "PROJECTED" && f.expected_date <= businessDate();
 const dealRef = (id: string | null) => (id ? (db().deals.find((d) => d.id === id)?.deal_reference ?? null) : null);
 const baseOf = (f: CashFlowRecord) => Number(f.amount) * ratesAt()[f.currency_code as Ccy];
 
@@ -63,7 +63,7 @@ function toEntity(f: CashFlowRecord): CashFlow {
 }
 
 function inView(f: CashFlowRecord, view: CashFlowFilters["view"]) {
-  if (view === "upcoming") return f.status === "PROJECTED" && f.expected_date > BUSINESS_DATE;
+  if (view === "upcoming") return f.status === "PROJECTED" && f.expected_date > businessDate();
   if (view === "overdue") return isOverdue(f);
   if (view === "settled") return f.status === "SETTLED";
   return true;
@@ -108,7 +108,7 @@ function validateManual(i: CashFlowInput): FieldError[] {
   const dp = i.currency_code === "JPY" ? 0 : 2;
   if (!isDec(i.amount) || Number(i.amount) <= 0) e.push({ field: "amount", message: "enter an amount above zero" });
   else if (decimalPlaces(i.amount) > dp) e.push({ field: "amount", message: `use at most ${dp} decimal places for ${i.currency_code}` });
-  if (!isIsoDate(i.expected_date) || i.expected_date <= BUSINESS_DATE) e.push({ field: "expected_date", message: `must be after the business date (${fmtDate(BUSINESS_DATE)}); record past flows by settling them` });
+  if (!isIsoDate(i.expected_date) || i.expected_date <= businessDate()) e.push({ field: "expected_date", message: `must be after the business date (${fmtDate(businessDate())}); record past flows by settling them` });
   if (i.counterparty_id && !db().counterparties.some((c) => c.id === i.counterparty_id)) e.push({ field: "counterparty_id", message: "unknown counterparty" });
   return e;
 }
@@ -202,7 +202,7 @@ export async function settleCashFlow(id: string, input: SettleInput): Promise<Ca
   const acct = db().cashAccounts.find((a) => a.currency_code === f.currency_code);
   const e: FieldError[] = [];
   if (!isIsoDate(input.actual_date)) e.push({ field: "actual_date", message: "enter the settlement date" });
-  else if (input.actual_date > BUSINESS_DATE) e.push({ field: "actual_date", message: `can't be after the business date (${fmtDate(BUSINESS_DATE)})` });
+  else if (input.actual_date > businessDate()) e.push({ field: "actual_date", message: `can't be after the business date (${fmtDate(businessDate())})` });
   else if (acct && input.actual_date <= acct.opening_date) e.push({ field: "actual_date", message: `must be after the ${f.currency_code} cash account's opening date (${fmtDate(acct.opening_date)})` });
   const dp = f.currency_code === "JPY" ? 0 : 2;
   if (!isDec(input.settled_amount) || Number(input.settled_amount) < 0) e.push({ field: "settled_amount", message: "enter the amount received or paid (zero or more)" });
@@ -219,7 +219,7 @@ export async function settleCashFlow(id: string, input: SettleInput): Promise<Ca
   f.updated_at = now;
   f.updated_by = user.name;
   syncDeal(f, user.name, now);
-  audit({ actor: user.name, action: "SETTLE", entity_type: "cash flow", entity_id: id, summary: `Settled ${f.transaction_reference}: ${input.settled_amount} ${f.currency_code} on ${input.actual_date}` });
+  audit({ actor: user, action: "SETTLE", entity_type: "cash flow", entity_id: id, summary: `Settled ${f.transaction_reference}: ${input.settled_amount} ${f.currency_code} on ${input.actual_date}` });
   commit();
   return toEntity(f);
 }
@@ -239,7 +239,7 @@ export async function failCashFlow(id: string, input: FailInput): Promise<CashFl
   f.updated_at = now;
   f.updated_by = user.name;
   syncDeal(f, user.name, now);
-  audit({ actor: user.name, action: "FAIL", entity_type: "cash flow", entity_id: id, summary: `Failed ${f.transaction_reference}: ${f.note}` });
+  audit({ actor: user, action: "FAIL", entity_type: "cash flow", entity_id: id, summary: `Failed ${f.transaction_reference}: ${f.note}` });
   commit();
   return toEntity(f);
 }
@@ -254,7 +254,7 @@ export async function cancelCashFlow(id: string, version: number): Promise<CashF
   f.version += 1;
   f.updated_at = nowIso();
   f.updated_by = user.name;
-  audit({ actor: user.name, action: "CANCEL", entity_type: "cash flow", entity_id: id, summary: `Cancelled ${f.transaction_reference}` });
+  audit({ actor: user, action: "CANCEL", entity_type: "cash flow", entity_id: id, summary: `Cancelled ${f.transaction_reference}` });
   commit();
   return toEntity(f);
 }
@@ -267,7 +267,7 @@ export async function cashFlowSummary(f: CashFlowFilters): Promise<CashFlowSumma
   const rows = db().cashFlows.filter((r) => !ccys.length || ccys.includes(r.currency_code));
   const acc = () => ({ count: 0, in: 0, out: 0 });
   const t = { upcoming: acc(), overdue: acc(), settled: acc() };
-  const windowStart = db().cashAccounts[0]?.opening_date ?? BUSINESS_DATE;
+  const windowStart = db().cashAccounts[0]?.opening_date ?? businessDate();
   for (const r of rows) {
     const v = r.direction === "IN" ? "in" : "out";
     if (inView(r, "upcoming")) {
@@ -282,7 +282,7 @@ export async function cashFlowSummary(f: CashFlowFilters): Promise<CashFlowSumma
     }
   }
   const out = (x: { count: number; in: number; out: number }) => ({ count: x.count, inflows: money(x.in, BASE_CCY), outflows: money(x.out, BASE_CCY) });
-  return { base_currency: BASE_CCY, as_of: BUSINESS_DATE, settled_since: windowStart, upcoming: out(t.upcoming), overdue: out(t.overdue), settled: out(t.settled) };
+  return { base_currency: BASE_CCY, as_of: businessDate(), settled_since: windowStart, upcoming: out(t.upcoming), overdue: out(t.overdue), settled: out(t.settled) };
 }
 
 export const cashFlowsMock = {

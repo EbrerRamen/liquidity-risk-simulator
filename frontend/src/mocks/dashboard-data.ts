@@ -14,9 +14,15 @@ import type { Band, CounterpartyType, DealType } from "./reference";
 
 export type { Band } from "./reference";
 
-export const BUSINESS_DATE = "2026-11-12";
+/**
+ * The seed's reference date: the business date the synthetic data is generated
+ * around (TECHNICAL_PLAN §6.1, A8). The live business date is app_settings
+ * (db.ts, businessDate()), which an admin can move; generation never does.
+ */
+export const SEED_REFERENCE_DATE = "2026-11-12";
 export const BASE_CCY = "USD";
-export const MIN_BUFFER_BASE = 600_000_000; // app_settings.min_buffer, base currency
+/** Seeded app_settings.min_liquidity_buffer, in the base currency. */
+export const DEFAULT_MIN_BUFFER_BASE = 600_000_000;
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "SGD"] as const;
 export type Ccy = (typeof CURRENCIES)[number];
@@ -171,7 +177,7 @@ export function projectedFlows(ccy: Ccy): DayFlows[] {
   const scale = (SHARE[ccy] * 1_000_000) / FX[ccy];
   const out: DayFlows[] = [];
   for (let t = 1; t <= 90; t++) {
-    const date = addDays(BUSINESS_DATE, t);
+    const date = addDays(SEED_REFERENCE_DATE, t);
     let inflows = 0;
     let outflows = 0;
     if (!isWeekend(date)) {
@@ -195,7 +201,7 @@ export function actualFlows(ccy: Ccy): DayFlows[] {
   const scale = (SHARE[ccy] * 1_000_000) / FX[ccy];
   const out: DayFlows[] = [];
   for (let t = -179; t <= 0; t++) {
-    const date = addDays(BUSINESS_DATE, t);
+    const date = addDays(SEED_REFERENCE_DATE, t);
     let inflows = 0;
     let outflows = 0;
     if (!isWeekend(date)) {
