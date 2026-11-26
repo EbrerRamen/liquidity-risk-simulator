@@ -4,6 +4,14 @@ Living checklist. Update it at the end of every milestone. Details for each item
 
 Legend: `[x]` done · `[ ]` to do · `[~]` in progress
 
+## Current state (2026-11-26)
+
+The frontend is being built ahead of the backend. Every screen reads from an in-browser mock API in `frontend/src/mocks/`, which follows the §4 contract and the §5 formulas and keeps its data in `sessionStorage`. The functions in `frontend/src/api/` call the mocks directly, so when the backend exists only their bodies change. There is no `backend/` directory yet.
+
+No Phase 3 milestone is marked done, because each exit criterion in §7 needs the real API and seeded data. The sub-items under each `[~]` milestone show which parts are built.
+
+**Next up:** the Admin screens (Users and Settings for M3.2, Audit Log for M3.3), which finish the Phase 3 screens. Then Phase 2, before any Phase 4 screens, so that the §5 engines aren't written twice (once in the TypeScript mocks and again in Python).
+
 ## Phase 1: Planning
 - [x] Requirements analysis and ambiguity resolutions (§0.3)
 - [x] System architecture (§1)
@@ -18,16 +26,35 @@ Legend: `[x]` done · `[ ]` to do · `[~]` in progress
 
 ## Phase 2: Backend foundation
 - [ ] M2.1 Tooling: monorepo, uv, ruff, mypy, pytest, pre-commit, `.env.example`, CI (lint + tests + Postgres)
+  - Frontend: only `tsc` type checking so far. ESLint and Vitest aren't set up yet (§7.1 CI pipeline).
 - [ ] M2.2 Database: ORM models, initial Alembic migration, reference data, app settings
 - [ ] M2.3 Security core: JWT auth, refresh rotation, RBAC, audit helper, problem+json errors, request IDs
 - [ ] M2.4 CRUD APIs for all master data, plus the deal schedule engine (day count, Modified Following)
 - [ ] M2.5 Synthetic data generator and `lrs seed` (reproducible, under 60s)
 
 ## Phase 3: Frontend foundation
-- [ ] M3.1 Design system: tokens, typography, UI primitives, chart wrappers, generated API types
-- [ ] M3.2 App shell, auth flow, role-aware navigation
-- [ ] M3.3 Data management screens (tables, filters, forms, drawers, CSV export)
-- [ ] M3.4 Dashboard v1 (SQL aggregates, date-range filter, drill-down)
+- [~] M3.1 Design system: tokens, typography, UI primitives, chart wrappers, generated API types
+  - [x] Vite, TypeScript, Tailwind v4, tokens, typography, UI primitives, Recharts chart wrappers
+  - [x] Component gallery at `/design-system` (development builds only)
+  - [ ] Generated API types. `frontend/src/api/types.ts` is written by hand until the backend publishes OpenAPI.
+- [~] M3.2 App shell, auth flow, role-aware navigation
+  - [x] Sign-in page, app shell, sidebar, top bar with breadcrumb, role-aware navigation and route guards
+  - [x] Session restored on reload, access token refreshed before expiry (against the mock `/auth/refresh`)
+  - [x] Edit actions hidden from viewers
+  - [ ] Error boundary (routes have no `errorElement` yet)
+  - [ ] Users screen (`/admin/users`)
+  - [ ] Settings screen (`/admin/settings`): simulation business date, minimum liquidity buffer
+  - [ ] Working against the real auth API
+- [~] M3.3 Data management screens (tables, filters, forms, drawers, CSV export)
+  - [x] Shared list, detail and editor components: paging, sorting, filters, search, detail drawers, zod-validated forms, CSV export
+  - [x] Counterparties, MM deals (with schedule preview), cash flows, funding sources, liquid assets, cash accounts, currency exposures, FX rates
+  - [ ] Audit Log screen (`/admin/audit`)
+  - [ ] Full CRUD against the real API and seeded data (exit criterion)
+- [~] M3.4 Dashboard v1 (SQL aggregates, date-range filter, drill-down)
+  - [x] KPIs, cash history, projection, flows, maturity, concentration and risk charts, maturities table, findings
+  - [x] Horizon, lookback and currency filters kept in the URL, drill-down links to the data screens
+  - [x] Loading, empty and error states
+  - [ ] Figures from SQL aggregates in the real API (exit criterion)
 
 ## Phase 4: Financial calculation engine
 - [ ] M4.1 Core position engine plus worked-example golden test plus Hypothesis invariants
