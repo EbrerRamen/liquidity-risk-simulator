@@ -254,7 +254,7 @@ function ExposureEditor({ id, nav }: { id: string | null; nav: PanelNav }) {
       onClose={nav.closeEditor}
     >
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5 px-5 py-5">
-        <FormBanner banner={banner} onReloadLatest={() => void entity.refetch().then((r) => { if (r.data) form.reset(toValues(r.data)); setBanner(null); })} />
+        <FormBanner banner={banner} onReloadLatest={() => void entity.refetch().then((r) => { if (r.data) form.reset(toValues(r.data), { keepDirtyValues: false }); setBanner(null); })} />
         <p className="text-xs text-fg-muted">Only positions not captured elsewhere: FX spots and forwards, off-balance-sheet items. Deals, cash, securities and funding already count (A2).</p>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-fg-muted">Position<span className="ml-0.5 text-negative" aria-hidden>*</span></span>

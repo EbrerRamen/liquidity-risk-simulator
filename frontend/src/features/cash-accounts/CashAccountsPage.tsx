@@ -168,7 +168,7 @@ function AccountEditor({ id, nav, taken }: { id: string | null; nav: PanelNav; t
       onClose={nav.closeEditor}
     >
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5 px-5 py-5">
-        <FormBanner banner={banner} onReloadLatest={() => void entity.refetch().then((r) => { if (r.data) form.reset(toValues(r.data)); setBanner(null); })} />
+        <FormBanner banner={banner} onReloadLatest={() => void entity.refetch().then((r) => { if (r.data) form.reset(toValues(r.data), { keepDirtyValues: false }); setBanner(null); })} />
         {e && (
           <Alert tone="warning" title="This moves opening liquidity">
             The opening balance and date anchor {e.currency_code} cash. Changing them changes cash at the business date and every dashboard figure that uses it.

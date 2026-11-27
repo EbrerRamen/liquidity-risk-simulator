@@ -279,7 +279,7 @@ function FundingEditor({ id, nav }: { id: string | null; nav: PanelNav }) {
           banner={banner}
           onReloadLatest={() =>
             void entity.refetch().then((r) => {
-              if (r.data) form.reset(toValues(r.data));
+              if (r.data) form.reset(toValues(r.data), { keepDirtyValues: false });
               setBanner(null);
               toast.show({ tone: "info", title: "Loaded the latest version" });
             })
