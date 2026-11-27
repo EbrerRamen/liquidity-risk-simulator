@@ -122,7 +122,7 @@ export function DealsPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["deals", "list", p], queryFn: () => dealsApi.list(p as DealFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["deals", "list", p], queryFn: () => dealsApi.list(p as DealFilters) })}
       exportCsv={(p) => dealsApi.exportCsv(p as DealFilters)}
       summary={(p) => <DealSummaryStrip params={p} />}
       canCreate={can.analyst}
@@ -134,4 +134,3 @@ export function DealsPage() {
     />
   );
 }
-

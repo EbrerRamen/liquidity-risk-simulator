@@ -1,5 +1,5 @@
 import { useCallback, useMemo, type ReactNode } from "react";
-import type { UseQueryResult } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, type QueryKey } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Plus, SearchX } from "lucide-react";
 import { isApiError } from "@/api/problem";
@@ -45,7 +45,8 @@ export interface ResourceListPageProps<Item> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: (open: (id: string) => void) => ColumnDef<Item, any>[];
   rowId: (row: Item) => string;
-  useList: (params: ListParams) => UseQueryResult<Page<Item>>;
+  /** The list request for the current filters, sort and page. Previous rows stay visible while the next page loads. */
+  listQuery: (params: ListParams) => { queryKey: QueryKey; queryFn: () => Promise<Page<Item>> };
   exportCsv?: (params: ListParams) => Promise<{ filename: string; csv: string; rows: number }>;
   createLabel?: string;
   canCreate?: boolean;
@@ -67,7 +68,7 @@ export function ResourceListPage<Item>({
   defaultSort,
   columns,
   rowId,
-  useList,
+  listQuery,
   exportCsv,
   createLabel,
   canCreate = false,
@@ -92,7 +93,7 @@ export function ResourceListPage<Item>({
       params[`${f.key}_to`] = list.get(`${f.key}_to`);
     } else params[f.key] = list.get(f.key) ?? f.defaultValue;
   }
-  const q = useList(params);
+  const q = useQuery({ ...listQuery(params), placeholderData: keepPreviousData });
 
   // Panels live in the URL: ?id= (view), &edit=1 (edit), ?new=1 (create).
   const openId = list.get("id") ?? null;

@@ -333,7 +333,7 @@ export function ExposuresPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["exposures", "list", p], queryFn: () => exposuresApi.list(p as ExposureFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["exposures", "list", p], queryFn: () => exposuresApi.list(p as ExposureFilters) })}
       exportCsv={(p) => exposuresApi.exportCsv(p as ExposureFilters)}
       summary={(p) => <SummaryStrip params={p} />}
       canCreate={can.analyst}

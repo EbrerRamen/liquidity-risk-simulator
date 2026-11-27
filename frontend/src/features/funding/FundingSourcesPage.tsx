@@ -399,7 +399,7 @@ export function FundingSourcesPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["funding", "list", p], queryFn: () => fundingApi.list(p as FundingFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["funding", "list", p], queryFn: () => fundingApi.list(p as FundingFilters) })}
       exportCsv={(p) => fundingApi.exportCsv(p as FundingFilters)}
       summary={(p) => <SummaryStrip params={p} />}
       canCreate={can.analyst}

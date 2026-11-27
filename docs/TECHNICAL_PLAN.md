@@ -33,17 +33,19 @@ Design principles:
 
 ### 0.1 Environment findings (this machine)
 
+Updated 2026-11-27, when Phase 2 started. The machine was first assessed on Windows 10 1809, which couldn't run Docker; it has since moved to Windows 11.
+
 | Item | Found | Impact on plan |
 |---|---|---|
-| OS | Windows 10 Pro **1809** (build 17763), WSL1 only | **Docker Desktop cannot run here.** It needs Windows 10 22H2+ and WSL2/Hyper-V support that 1809 lacks. |
-| Python | 3.14.1 | Usable. Recommend pinning **3.13 via `uv`** for parity with Docker/CI images (see Q2). |
-| Node / npm | 22.19 / 10.9 | Meets current Vite requirements. |
-| PostgreSQL | Not installed | Install PostgreSQL 17 (Windows installer) for local development. |
-| Docker | Not installed | See above. |
-| Ollama | Not installed | Ollama's Windows build also targets Windows 10 22H2+, so expect it not to run here. The LLM is optional; `OLLAMA_BASE_URL` can point at another machine. |
-| Git | 2.56 | Workspace is not yet a repository. |
+| OS | Windows 11 Pro (build 26200), WSL2 | Docker Desktop and Ollama can run locally. |
+| Python | 3.13 | Matches the CI and Docker images. `uv` 0.13 manages the environment (`backend/.python-version`). |
+| Node / npm | 26 | Meets current Vite requirements. CI uses the same major (`frontend/.nvmrc`). |
+| PostgreSQL | Docker `postgres:18` (`docker compose up -d db`) | The project's database runs in Docker on `127.0.0.1:5432`, with the `lrs` and `lrs_test` databases. A separate native PostgreSQL 18 on this machine (port 22014) is not used. |
+| Docker | Docker Desktop 4.100, Compose v5 | Used for the database now and for the full stack in M7.2. |
+| Ollama | Not installed | Optional (Phase 6); `OLLAMA_BASE_URL` can also point at another machine. |
+| Git | Repository with a GitHub remote | GitHub Actions runs CI on every push to `main` and every pull request. |
 
-**Consequence:** development is **native-first** (local PostgreSQL, `uvicorn`, Vite dev server). The Docker Compose stack is still a deliverable: images are built and a compose smoke test runs in **GitHub Actions** on every push, so containerisation is verified even though it can't run locally.
+**Consequence:** the app processes run natively (`uvicorn`, Vite dev server) against PostgreSQL in Docker, so the database matches CI and the Compose stack exactly. The full Compose stack (M7.2) is also verified in **GitHub Actions**.
 
 ### 0.2 Key architectural decisions
 
@@ -63,7 +65,7 @@ Design principles:
 | D12 | LLM | Optional Ollama over HTTP. Facts-only prompts, numeric/entity guardrails, template fallback. | Practical AI without letting the LLM compute or invent numbers | Hosted LLM APIs (paid), or LLM-computed metrics |
 | D13 | ML stack | Seasonal-naive/ETS baselines, Ridge, XGBoost, Isolation Forest/LOF. **No PyTorch, no Sentence Transformers in core.** | Tabular, modest-size data where gradient boosting and classical methods are appropriate. Neural nets would add about 2 GB of image size with no justified gain. | LSTM/Transformer forecasting |
 | D14 | Tooling | `uv` (deps + Python version), `ruff`, `mypy` (strict on engines), `pytest` + `hypothesis` | Fast, reproducible, property-based tests suit financial invariants | pip/poetry, flake8/black |
-| D15 | Dev environment | Native-first. Docker verified in CI. | Machine constraint (§0.1) | Docker-only workflow |
+| D15 | Dev environment | App processes native, PostgreSQL in Docker Compose. Full stack verified in CI. | Fast reloads for code, an identical database everywhere (§0.1) | Everything in Docker (slower reloads) or a hand-installed database |
 
 ### 0.3 Requirement ambiguities and proposed resolutions
 
@@ -117,7 +119,7 @@ flowchart LR
     S --> ORM["SQLAlchemy 2.0 ORM / Core"]
   end
 
-  ORM --> PG[("PostgreSQL 17")]
+  ORM --> PG[("PostgreSQL 18")]
   ML --> ART[("Model artifacts<br/>joblib + metadata")]
   INS -. "optional HTTP" .-> OLL["Ollama (local LLM)"]
   CLI["CLI: migrate · seed · train · evaluate"] --> S
@@ -204,8 +206,8 @@ A persistent top bar shows the **simulation business date**, the **base currency
 
 | Mode | Components |
 |---|---|
-| **Local native (this machine)** | PostgreSQL 17 service · `uvicorn app.main:app --reload` · `npm run dev` (Vite proxies `/api` to the backend, so the SPA and API are same-origin and the refresh cookie works without CORS tricks) |
-| **Docker Compose** (CI-verified) | `db` (postgres:17) · `migrate` (one-shot `alembic upgrade head`) · `backend` (uvicorn) · `frontend` (nginx serving the built SPA and proxying `/api`) · `ollama` (only with `--profile llm`) · volumes `pgdata`, `model_artifacts` |
+| **Local development** | PostgreSQL 18 via `docker compose up -d db` · `uvicorn app.main:app --reload` · `npm run dev` (Vite proxies `/api` to the backend, so the SPA and API are same-origin and the refresh cookie works without CORS tricks) |
+| **Docker Compose** (CI-verified) | `db` (postgres:18) · `migrate` (one-shot `alembic upgrade head`) · `backend` (uvicorn) · `frontend` (nginx serving the built SPA and proxying `/api`) · `ollama` (only with `--profile llm`) · volumes `pgdata`, `model_artifacts` |
 
 ---
 
@@ -304,7 +306,7 @@ liquidity-risk-simulator/
 
 ### 3.1 Conventions
 
-- PostgreSQL 17, schema managed only through **Alembic** (autogenerate, then hand-review every migration).
+- PostgreSQL 18, schema managed only through **Alembic** (autogenerate, then hand-review every migration).
 - Money: `NUMERIC(20,4)`. Rates (interest, FX): `NUMERIC(18,8)` for FX and `NUMERIC(12,8)` for interest, stored as a fraction (0.0525 = 5.25%), negative allowed. Ratios and haircuts: `NUMERIC(7,6)`.
 - Every mutable table has `created_at` and `updated_at` (`timestamptz`), `created_by` and `updated_by` (FK users, nullable for seed), and `version INT` for **optimistic locking** (SQLAlchemy `version_id_col`).
 - Enums: `VARCHAR` + `CHECK` (D5). Countries ISO 3166-1 alpha-2, currencies ISO 4217.
@@ -1186,7 +1188,7 @@ Size is relative effort (S < M < L < XL). **Definition of done for every milesto
 
 | # | Challenge | Solution |
 |---|---|---|
-| C1 | **No Docker on this machine** (Windows 10 1809) | Native-first development. Compose is verified in GitHub Actions. Optionally run Ollama on another machine through `OLLAMA_BASE_URL`. |
+| C1 | **No Docker on the original machine** (Windows 10 1809) | Resolved by the move to Windows 11: Docker Desktop runs the database locally, and Compose is also verified in GitHub Actions. Ollama can still run on another machine through `OLLAMA_BASE_URL`. |
 | C2 | **Decimal precision end to end** (Python, SQL, JSON, JS, charts) | `NUMERIC` in the DB, SQL `SUM` for aggregation (exact), `Decimal` engines with a module-level context, JSON strings, and frontend formatting from strings. Values become `number` **only** for chart geometry, and that precision loss is documented as display-only. |
 | C3 | **Decimal performance** on about 200k flows | Aggregate in SQL first (daily sums per currency and direction), so engines handle thousands of rows, not hundreds of thousands. Profiled in Phase 4. |
 | C4 | **Time-relative synthetic data** | Simulation business date in `app_settings`. The engines never read the wall clock. |
@@ -1208,8 +1210,10 @@ Size is relative effort (S < M < L < XL). **Definition of done for every milesto
 
 ## 9. Open questions for review
 
-1. **Docker / environment:** is native-first development on this machine acceptable, with Docker verified only in CI? Or will you develop on a newer Windows build, Linux or macOS machine where Docker Desktop runs?
-2. **Python version:** pin **3.13 via `uv`** (recommended; uv installs it side by side, and it matches the Docker/CI images), or standardise on the installed 3.14?
-3. **Currencies and base:** is USD base with EUR, GBP, JPY, CHF, AUD, SGD acceptable? (A different regional set, for example including BDT, INR or AED, is easy to swap in before seeding.)
-4. **Additional tables:** do you agree with adding `liquid_assets`, `cash_accounts`, `counterparty_rating_history`, `app_settings`, `seed_runs` and `synthetic_labels`, which the spec doesn't list (A1, A8, A14)?
-5. **Repository:** should Phase 2 start with `git init` and a GitHub remote (needed for GitHub Actions), and under what repository name?
+All answered by 2026-11-27, at the start of Phase 2.
+
+1. **Docker / environment:** the machine now runs Windows 11 with Docker Desktop. App processes run natively and PostgreSQL runs in Docker Compose (D15, §0.1).
+2. **Python version:** 3.13, pinned with `uv`.
+3. **Currencies and base:** USD base with EUR, GBP, JPY, CHF, AUD and SGD, as the frontend already uses.
+4. **Additional tables:** accepted. The frontend's data screens and admin settings already model `liquid_assets`, `cash_accounts`, `counterparty_rating_history` and `app_settings`.
+5. **Repository:** a Git repository with a GitHub remote, so GitHub Actions runs CI.

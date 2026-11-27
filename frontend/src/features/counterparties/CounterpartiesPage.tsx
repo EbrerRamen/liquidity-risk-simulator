@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Users } from "lucide-react";
 import { counterpartiesApi, type CounterpartyFilters, type CounterpartyListItem } from "@/api/counterparties";
@@ -109,7 +108,7 @@ export function CounterpartiesPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["counterparties", "list", p], queryFn: () => counterpartiesApi.list(p as CounterpartyFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["counterparties", "list", p], queryFn: () => counterpartiesApi.list(p as CounterpartyFilters) })}
       exportCsv={(p) => counterpartiesApi.exportCsv(p as CounterpartyFilters)}
       canCreate={can.analyst}
       canEdit={can.analyst}

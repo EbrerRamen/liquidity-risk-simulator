@@ -84,7 +84,16 @@ const COMPACT_STEPS: [number, string][] = [
   [1e9, "bn"],
   [1e6, "m"],
   [1e3, "k"],
+  [1, ""],
 ];
+
+/** `abs` in units of `step`, to `digits` significant digits (whole numbers up to 2 dp below 1k). */
+function compactIn(abs: number, step: number, digits: number): string {
+  if (step === 1) return trimZeros(abs.toFixed(abs >= 100 ? 0 : 2));
+  const scaled = abs / step;
+  const dp = Math.max(0, digits - Math.floor(Math.log10(scaled)) - 1);
+  return trimZeros(scaled.toFixed(dp));
+}
 
 /** Compact notation for KPIs: 1250000000 → "1.25bn". Display-only precision. */
 export function formatCompact(value: string, opts: { sign?: "negative" | "always"; digits?: number } = {}): string {
@@ -92,14 +101,15 @@ export function formatCompact(value: string, opts: { sign?: "negative" | "always
   const abs = Math.abs(n);
   const digits = opts.digits ?? 3; // significant digits
   const prefix = n < 0 && abs > 0 ? MINUS : opts.sign === "always" && abs > 0 ? "+" : "";
-  for (const [step, suffix] of COMPACT_STEPS) {
-    if (abs >= step) {
-      const scaled = abs / step;
-      const dp = Math.max(0, digits - Math.floor(Math.log10(scaled)) - 1);
-      return prefix + trimZeros(scaled.toFixed(dp)) + suffix;
-    }
+  const found = COMPACT_STEPS.findIndex(([step]) => abs >= step);
+  let i = found === -1 ? COMPACT_STEPS.length - 1 : found;
+  let text = compactIn(abs, COMPACT_STEPS[i]![0], digits);
+  // Rounding can carry into the next unit (999,999 → "1000k"); show that unit instead ("1m").
+  if (Number(text) >= 1000 && i > 0) {
+    i -= 1;
+    text = compactIn(abs, COMPACT_STEPS[i]![0], digits);
   }
-  return prefix + trimZeros(abs.toFixed(abs >= 100 ? 0 : 2));
+  return prefix + text + COMPACT_STEPS[i]![1];
 }
 
 function trimZeros(s: string): string {

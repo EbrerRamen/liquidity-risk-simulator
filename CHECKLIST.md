@@ -10,7 +10,7 @@ The frontend is being built ahead of the backend. Every screen reads from an in-
 
 No Phase 3 milestone is marked done, because each exit criterion in §7 needs the real API and seeded data. The sub-items under each `[~]` milestone show which parts are built.
 
-**Next up:** Phase 2. Every Phase 3 screen now exists against the mock API, so the backend comes next, before any Phase 4 screens, so that the §5 engines aren't written twice (once in the TypeScript mocks and again in Python).
+**Next up:** finish M2.1 by pushing, so CI runs on GitHub, then M2.2 (ORM models, first Alembic migration, reference data, app settings). Every Phase 3 screen exists against the mock API, so the backend comes before any Phase 4 screens; that way the §5 engines aren't written twice (once in the TypeScript mocks and again in Python).
 
 ## Phase 1: Planning
 - [x] Requirements analysis and ambiguity resolutions (§0.3)
@@ -22,11 +22,15 @@ No Phase 3 milestone is marked done, because each exit criterion in §7 needs th
 - [x] ML strategy and synthetic data design (§6)
 - [x] Roadmap and testing strategy (§7)
 - [x] Technical challenges (§8)
-- [ ] **Plan reviewed and open questions answered (§9)**
+- [x] Plan reviewed and open questions answered (§9)
 
 ## Phase 2: Backend foundation
-- [ ] M2.1 Tooling: monorepo, uv, ruff, mypy, pytest, pre-commit, `.env.example`, CI (lint + tests + Postgres)
-  - Frontend: only `tsc` type checking so far. ESLint and Vitest aren't set up yet (§7.1 CI pipeline).
+- [~] M2.1 Tooling: monorepo, uv, ruff, mypy, pytest, pre-commit, `.env.example`, CI (lint + tests + Postgres)
+  - [x] `backend/`: uv project on Python 3.13, FastAPI app with `/api/v1/health` and `/health/ready`, ruff, mypy (strict), pytest with coverage
+  - [x] `docker-compose.yml` with PostgreSQL 18 (`lrs` and `lrs_test` databases), `.env.example`
+  - [x] Frontend: ESLint and Vitest, with first tests for decimal parsing, the business-day calendar and number formatting
+  - [x] `.pre-commit-config.yaml`; `.github/workflows/ci.yml` (backend with a Postgres service, frontend lint, type-check, test, build)
+  - [ ] CI green on GitHub (exit criterion): runs on the next push
 - [ ] M2.2 Database: ORM models, initial Alembic migration, reference data, app settings
 - [ ] M2.3 Security core: JWT auth, refresh rotation, RBAC, audit helper, problem+json errors, request IDs
 - [ ] M2.4 CRUD APIs for all master data, plus the deal schedule engine (day count, Modified Following)

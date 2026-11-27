@@ -162,7 +162,7 @@ export function CashFlowsPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["cash-flows", "list", p], queryFn: () => cashFlowsApi.list(p as CashFlowFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["cash-flows", "list", p], queryFn: () => cashFlowsApi.list(p as CashFlowFilters) })}
       exportCsv={(p) => cashFlowsApi.exportCsv(p as CashFlowFilters)}
       summary={(p) => <SummaryStrip params={p} />}
       canCreate={can.analyst}

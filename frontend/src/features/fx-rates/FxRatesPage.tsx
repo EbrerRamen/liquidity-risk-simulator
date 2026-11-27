@@ -54,7 +54,7 @@ function HistoryDrawer({ ccy, onClose }: { ccy: CurrencyCode; onClose: () => voi
   const [confirm, setConfirm] = useState<FxHistoryPoint | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"chart" | "table">("chart");
-  const rows = q.data ?? [];
+  const rows = useMemo(() => q.data ?? [], [q.data]);
   const series = useMemo(() => [...rows].reverse().map((r) => ({ date: r.rate_date, rate: Number(r.rate_to_base), manual: r.source === "MANUAL" })), [rows]);
   const y = niceScale(Math.min(...series.map((s) => s.rate)), Math.max(...series.map((s) => s.rate)), 5);
   const manual = rows.filter((r) => r.source === "MANUAL").length;
@@ -306,7 +306,10 @@ export function FxRatesPage() {
     setSp(
       (prev) => {
         const next = new URLSearchParams(prev);
-        for (const [k, v] of Object.entries(patch)) (v === null ? next.delete(k) : next.set(k, v));
+        for (const [k, v] of Object.entries(patch)) {
+          if (v === null) next.delete(k);
+          else next.set(k, v);
+        }
         return next;
       },
       { replace: !push },

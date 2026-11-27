@@ -361,7 +361,7 @@ export function LiquidAssetsPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["liquid-assets", "list", p], queryFn: () => liquidAssetsApi.list(p as LiquidAssetFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["liquid-assets", "list", p], queryFn: () => liquidAssetsApi.list(p as LiquidAssetFilters) })}
       exportCsv={(p) => liquidAssetsApi.exportCsv(p as LiquidAssetFilters)}
       summary={(p) => <SummaryStrip params={p} />}
       canCreate={can.analyst}

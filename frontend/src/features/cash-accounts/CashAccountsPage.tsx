@@ -2,7 +2,7 @@ import { useCallback, useId, useState } from "react";
 import { Link } from "react-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { z } from "zod";
 import { MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react";
@@ -247,7 +247,7 @@ export function CashAccountsPage() {
       filters={[]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["cash-accounts", "list", p], queryFn: () => cashAccountsApi.list(p as CashAccountFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["cash-accounts", "list", p], queryFn: () => cashAccountsApi.list(p as CashAccountFilters) })}
       exportCsv={(p) => cashAccountsApi.exportCsv(p as CashAccountFilters)}
       summary={() =>
         total !== undefined && (

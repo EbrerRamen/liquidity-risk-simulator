@@ -2,7 +2,7 @@ import { useCallback, useId, useState } from "react";
 import { Link } from "react-router";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { z } from "zod";
 import { Eye, EyeOff, MoreHorizontal, Pencil, ScrollText, UserCheck, UserX, Users } from "lucide-react";
@@ -381,7 +381,7 @@ export function UsersPage() {
       ]}
       columns={columns}
       rowId={(r) => r.id}
-      useList={(p) => useQuery({ queryKey: ["users", "list", p], queryFn: () => usersApi.list(p as UserFilters), placeholderData: keepPreviousData })}
+      listQuery={(p) => ({ queryKey: ["users", "list", p], queryFn: () => usersApi.list(p as UserFilters) })}
       canCreate
       canEdit
       createLabel="New user"

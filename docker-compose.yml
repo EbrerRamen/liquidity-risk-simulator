@@ -1,0 +1,31 @@
+# Local services (TECHNICAL_PLAN §1.6). For now only the database; M7.2 adds
+# the migrate, backend, frontend and optional ollama services.
+#
+#   docker compose up -d db      start PostgreSQL on 127.0.0.1:${POSTGRES_PORT}
+#   docker compose down          stop it (data stays in the pgdata volume)
+#   docker compose down -v       stop it and delete the data
+name: lrs
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lrs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lrs}
+      POSTGRES_DB: ${POSTGRES_DB:-lrs}
+    ports:
+      # Loopback only: the database is never exposed to the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/<major>/.
+      - pgdata:/var/lib/postgresql
+      # Runs once, on an empty volume: creates the test database.
+      - ./backend/docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
